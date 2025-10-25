@@ -1,9 +1,9 @@
 import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
-import { WebSocketTransport } from './http-transport';
+import { WebSocketTransport } from './http-transport.js';
 import { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
-import { ModelitMCPServer } from './server';
+import { ModelitMCPServer } from './server.js';
 
 export interface HTTPServerConfig {
   port: number;

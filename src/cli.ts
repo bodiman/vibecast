@@ -2,11 +2,11 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { Model } from './models/Model';
+import { Model } from './models/Model.js';
 // CLI imports
-import { EvaluationEngine } from './engine/EvaluationEngine';
-import { ModelStorage } from './storage/ModelStorage';
-import { ModelitHTTPServer } from './mcp/http-server';
+import { EvaluationEngine } from './engine/EvaluationEngine.js';
+import { ModelStorage } from './storage/ModelStorage.js';
+import { ModelitHTTPServer } from './mcp/http-server.js';
 
 interface CLIOptions {
   help?: boolean;
