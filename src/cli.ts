@@ -220,7 +220,7 @@ async function main(): Promise<void> {
         model = await storage.loadModel(options.model);
         console.log(`Loaded model: ${model.name}`);
       } catch (error) {
-        console.error(`Failed to load model '${options.model}': ${error instanceof Error ? error.message : String(error)}`);
+        console.error(`Failed to load model '${options.model}': ${(error as Error)?.message || String(error)}`);
         process.exit(1);
       }
     }
@@ -310,7 +310,7 @@ async function main(): Promise<void> {
     const variables = model.listVariables();
     console.log(`Variables: ${variables.length}`);
     
-    variables.forEach(variable => {
+    variables.forEach((variable: any) => {
       const formula = variable.formula ? ` = ${variable.formula}` : '';
       const type = variable.type !== 'scalar' ? ` [${variable.type}]` : '';
       console.log(`  ${variable.name}${type}${formula}`);

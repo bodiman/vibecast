@@ -324,7 +324,7 @@ async function handleListVariables() {
     };
   }
 
-  const variableList = variables.map(v => {
+  const variableList = variables.map((v: any) => {
     const formula = v.formula ? ` = ${v.formula}` : '';
     const deps = v.dependencies.length > 0 ? ` (depends on: ${v.dependencies.join(', ')})` : '';
     return `- ${v.name}${formula}${deps}`;

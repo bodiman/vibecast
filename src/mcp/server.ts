@@ -368,7 +368,7 @@ export class ModelitMCPServer {
       };
     }
 
-    const variableList = variables.map(v => {
+    const variableList = variables.map((v: any) => {
       const formula = v.formula ? ` = ${v.formula}` : '';
       const deps = v.dependencies.length > 0 ? ` (depends on: ${v.dependencies.join(', ')})` : '';
       return `- ${v.name}${formula}${deps}`;
@@ -470,8 +470,8 @@ export class ModelitMCPServer {
           {
             type: 'text',
             text: `Dependencies for ${variable}:\n` +
-                  `Depends on: [${deps.map(d => d.name).join(', ')}]\n` +
-                  `Required by: [${dependents.map(d => d.name).join(', ')}]`,
+                  `Depends on: [${deps.map((d: any) => d.name).join(', ')}]\n` +
+                  `Required by: [${dependents.map((d: any) => d.name).join(', ')}]`,
           },
         ],
       };
