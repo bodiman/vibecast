@@ -51,3 +51,12 @@ models/
 
 # Jest cache
 .jest/
+
+# Railway deployment
+.railway/
+
+# Bundle files (we're using non-bundled for deployment)
+*.bundle.js
+
+# Local development
+.env.example
