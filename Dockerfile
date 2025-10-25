@@ -1,23 +1,38 @@
-# Simulate Railway's Nixpacks build process
+# Fly.io Node.js deployment
 FROM node:20-alpine
-
-EXPOSE 3000
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better caching
 COPY package*.json ./
 
-# Install dependencies (including dev dependencies for build)
-RUN npm ci
+# Install dependencies
+RUN npm ci --only=production --silent
 
 # Copy source code and config
 COPY src/ ./src/
 COPY tsconfig.json ./
 
-# Build the TypeScript project (this is what Railway does)
+# Install dev dependencies for build
+RUN npm ci --silent
+
+# Build the TypeScript project
 RUN npm run build
 
-# Start the server using npm start
+# Remove dev dependencies to reduce image size
+RUN npm prune --production
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
+
+# Change ownership of the app directory
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
+# Expose port (Fly.io handles the mapping)
+EXPOSE 3000
+
+# Start the server
 CMD ["npm", "start"]

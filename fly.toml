@@ -1,0 +1,36 @@
+app = 'modelit-mcp-server'
+primary_region = 'sjc'
+
+[build]
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+  [http_service.checks]
+    [http_service.checks.alive]
+      grace_period = '10s'
+      headers = {}
+      interval = '30s'
+      method = 'GET'
+      path = '/api/health'
+      protocol = 'http'
+      restart_limit = 0
+      timeout = '5s'
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+[[env]]
+  MODELIT_TRANSPORT = "http"
+  MODELIT_HTTP_PORT = "3000"
+  MODELIT_HTTP_HOST = "0.0.0.0"
+
+[processes]
+  app = 'npm start'
