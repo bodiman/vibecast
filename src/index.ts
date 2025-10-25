@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { ModelitMCPServer } from './mcp/server';
-import { ModelitHTTPServer } from './mcp/http-server';
+import { ModelitMCPServer } from './mcp/server.js';
+import { ModelitHTTPServer } from './mcp/http-server.js';
 import { join } from 'path';
 import { homedir } from 'os';
 

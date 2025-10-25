@@ -6,11 +6,11 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { Model } from '../models/Model';
-import { Variable } from '../models/Variable';
-import { EvaluationEngine } from '../engine/EvaluationEngine';
-import { ModelStorage } from '../storage/ModelStorage';
-import { DependencyGraph } from '../graph/DependencyGraph';
+import { Model } from '../models/Model.js';
+import { Variable } from '../models/Variable.js';
+import { EvaluationEngine } from '../engine/EvaluationEngine.js';
+import { ModelStorage } from '../storage/ModelStorage.js';
+import { DependencyGraph } from '../graph/DependencyGraph.js';
 
 export class ModelitMCPServer {
   private server: Server;
