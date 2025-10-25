@@ -14,6 +14,7 @@ async function main() {
   const transport = process.env.MODELIT_TRANSPORT || 'stdio';
   const port = parseInt(process.env.MODELIT_HTTP_PORT || '3000', 10);
   const host = process.env.MODELIT_HTTP_HOST || 'localhost';
+  const databaseUrl = process.env.DATABASE_URL;
   
   try {
     if (transport === 'http') {
@@ -21,23 +22,29 @@ async function main() {
       const httpServer = new ModelitHTTPServer({
         port,
         host,
-        storageDirectory
+        storageDirectory,
+        databaseUrl
       });
       
       console.log(`Starting Modelit MCP Server in HTTP mode...`);
       console.log(`Storage directory: ${storageDirectory}`);
-      console.log(`Server capabilities: Variable management, Model evaluation, Dependency analysis`);
+      console.log(`Database: ${databaseUrl ? 'PostgreSQL' : 'File Storage'}`);
+      console.log(`Server capabilities: Variable management, Model evaluation, Dependency analysis, 3D Graph Visualization`);
       console.log('');
       
       await httpServer.start();
     } else {
       // Start stdio server (default)
-      const server = new ModelitMCPServer(storageDirectory);
+      const server = new ModelitMCPServer(storageDirectory, databaseUrl);
+      
+      // Initialize database connection if available
+      await server.initialize();
       
       // Log startup info to stderr (won't interfere with MCP protocol on stdout/stdin)
       console.error(`Modelit MCP Server starting in stdio mode...`);
       console.error(`Storage directory: ${storageDirectory}`);
-      console.error(`Server capabilities: Variable management, Model evaluation, Dependency analysis`);
+      console.error(`Database: ${databaseUrl ? 'PostgreSQL' : 'File Storage'}`);
+      console.error(`Server capabilities: Variable management, Model evaluation, Dependency analysis, 3D Graph Visualization`);
       
       await server.run();
     }

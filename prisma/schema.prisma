@@ -1,0 +1,152 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Model represents a complete mathematical model
+model Model {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  metadata    Json?    // Flexible metadata storage
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  version     String   @default("1.0.0")
+  
+  // Relations
+  variables   Variable[]
+  edges       Edge[]
+  marketplace MarketplaceModel?
+  versions    ModelVersion[]
+  
+  // Indexes for performance
+  @@map("models")
+}
+
+// Variable represents a single variable in a model
+model Variable {
+  id       String  @id @default(cuid())
+  name     String  
+  type     String  // 'parameter', 'series', 'scalar'
+  formula  String? // Mathematical formula (null for parameters)
+  values   Json?   // Array of values for time series
+  metadata Json?   // Time indices, units, description, etc.
+  
+  // Relations
+  model    Model   @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  modelId  String
+  
+  // Edges where this variable is source or target
+  sourceEdges Edge[] @relation("SourceVariable")
+  targetEdges Edge[] @relation("TargetVariable")
+  
+  // Graph positioning for 3D visualization
+  position3D Json? // {x, y, z} coordinates
+  
+  // Indexes
+  @@unique([modelId, name])
+  @@map("variables")
+}
+
+// Edge represents a dependency relationship between variables
+model Edge {
+  id       String  @id @default(cuid())
+  type     String  @default("dependency") // 'dependency', 'temporal', 'causal', 'constraint'
+  metadata Json?   // Strength, description, etc.
+  
+  // Relations
+  model    Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  modelId  String
+  
+  source   Variable @relation("SourceVariable", fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId String
+  
+  target   Variable @relation("TargetVariable", fields: [targetId], references: [id], onDelete: Cascade)
+  targetId String
+  
+  // Indexes for graph queries
+  @@index([sourceId])
+  @@index([targetId])
+  @@index([modelId])
+  @@map("edges")
+}
+
+// MarketplaceModel represents published models in the marketplace
+model MarketplaceModel {
+  id          String   @id @default(cuid())
+  author      String
+  tags        String[] // Array of tags
+  category    String
+  license     String
+  stars       Int      @default(0)
+  forks       Int      @default(0)
+  downloads   Int      @default(0)
+  published   Boolean  @default(false)
+  publishedAt DateTime @default(now())
+  
+  // Relations
+  model       Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  modelId     String   @unique
+  
+  // Dependencies (references to other marketplace models)
+  dependencies String[] // Array of model IDs
+  
+  // Full-text search indexes
+  @@index([category])
+  @@index([author])
+  @@index([stars])
+  @@index([downloads])
+  @@map("marketplace_models")
+}
+
+// ModelVersion for version control
+model ModelVersion {
+  id        String   @id @default(cuid())
+  version   String
+  snapshot  Json     // Complete model state at this version
+  changelog String?
+  createdAt DateTime @default(now())
+  
+  // Relations
+  model     Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  modelId   String
+  
+  @@unique([modelId, version])
+  @@map("model_versions")
+}
+
+// Session for collaborative editing and real-time updates
+model Session {
+  id        String   @id @default(cuid())
+  userId    String?  // Optional user identification
+  modelId   String?  // Current model being edited
+  data      Json?    // Session state
+  lastSeen  DateTime @default(now())
+  createdAt DateTime @default(now())
+  
+  @@index([modelId])
+  @@index([userId])
+  @@map("sessions")
+}
+
+// GraphLayout for storing 3D visualization layouts
+model GraphLayout {
+  id          String @id @default(cuid())
+  modelId     String @unique
+  layoutType  String @default("force-directed") // Layout algorithm used
+  nodePositions Json  // Map of variableId -> {x, y, z}
+  settings    Json?  // Layout-specific settings
+  updatedAt   DateTime @updatedAt
+  
+  @@map("graph_layouts")
+}

@@ -1,6 +1,79 @@
 import WebSocket from 'ws';
 import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-import { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
+import { JSONRPCMessage, JSONRPCRequest, JSONRPCResponse } from '@modelcontextprotocol/sdk/types.js';
+import { randomUUID } from 'crypto';
+
+// Session state for HTTP MCP connections
+export enum SessionState {
+  Uninitialized = 'uninitialized',
+  Initializing = 'initializing', 
+  Ready = 'ready',
+  Closed = 'closed'
+}
+
+export interface MCPSession {
+  id: string;
+  state: SessionState;
+  capabilities: any;
+  clientInfo: any;
+  serverInfo: any;
+  createdAt: Date;
+  lastActivity: Date;
+}
+
+export class SessionManager {
+  private sessions = new Map<string, MCPSession>();
+  private readonly SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+  createSession(): MCPSession {
+    const sessionId = randomUUID();
+    const session: MCPSession = {
+      id: sessionId,
+      state: SessionState.Uninitialized,
+      capabilities: {},
+      clientInfo: {},
+      serverInfo: {},
+      createdAt: new Date(),
+      lastActivity: new Date()
+    };
+    
+    this.sessions.set(sessionId, session);
+    return session;
+  }
+
+  getSession(sessionId: string): MCPSession | undefined {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.lastActivity = new Date();
+    }
+    return session;
+  }
+
+  updateSession(sessionId: string, updates: Partial<MCPSession>): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      Object.assign(session, updates);
+      session.lastActivity = new Date();
+    }
+  }
+
+  deleteSession(sessionId: string): void {
+    this.sessions.delete(sessionId);
+  }
+
+  cleanup(): void {
+    const now = new Date();
+    for (const [sessionId, session] of this.sessions.entries()) {
+      if (now.getTime() - session.lastActivity.getTime() > this.SESSION_TIMEOUT) {
+        this.sessions.delete(sessionId);
+      }
+    }
+  }
+
+  getActiveSessions(): MCPSession[] {
+    return Array.from(this.sessions.values());
+  }
+}
 
 export class WebSocketTransport implements Transport {
   private ws: WebSocket;
@@ -70,16 +143,25 @@ export class HTTPTransport implements Transport {
   private closeHandlers: Set<() => void> = new Set();
   private errorHandlers: Set<(error: Error) => void> = new Set();
   private isClosed = false;
+  private sessionId: string;
+  private pendingResponse: JSONRPCResponse | null = null;
+
+  constructor(sessionId: string) {
+    this.sessionId = sessionId;
+  }
 
   async start(): Promise<void> {
     // HTTP transport doesn't need to start anything
   }
 
-  async send(_message: JSONRPCMessage): Promise<void> {
-    // For HTTP transport, we don't send messages back to client
-    // The response will be handled by the HTTP response mechanism
+  async send(message: JSONRPCMessage): Promise<void> {
     if (this.isClosed) {
       throw new Error('HTTP Transport is closed');
+    }
+    
+    // Store response for HTTP request-response cycle
+    if ('result' in message || 'error' in message) {
+      this.pendingResponse = message as JSONRPCResponse;
     }
   }
 
@@ -100,8 +182,39 @@ export class HTTPTransport implements Transport {
     this.errorHandlers.add(handler);
   }
 
-  // Method to simulate receiving a message (for HTTP requests)
-  receiveMessage(message: JSONRPCMessage): void {
-    this.messageHandlers.forEach(handler => handler(message));
+  // Method to handle incoming HTTP request
+  async handleRequest(message: JSONRPCRequest): Promise<JSONRPCResponse> {
+    return new Promise((resolve, reject) => {
+      // Set up one-time response handler
+      const responseHandler = (response: JSONRPCMessage) => {
+        if ('result' in response || 'error' in response) {
+          resolve(response as JSONRPCResponse);
+        }
+      };
+
+      this.messageHandlers.add(responseHandler);
+      
+      // Send the message to MCP server handlers
+      this.messageHandlers.forEach(handler => {
+        if (handler !== responseHandler) {
+          handler(message);
+        }
+      });
+
+      // Clean up handler after timeout
+      setTimeout(() => {
+        this.messageHandlers.delete(responseHandler);
+        if (this.pendingResponse) {
+          resolve(this.pendingResponse);
+          this.pendingResponse = null;
+        } else {
+          reject(new Error('Request timeout'));
+        }
+      }, 30000); // 30 second timeout
+    });
+  }
+
+  getSessionId(): string {
+    return this.sessionId;
   }
 }
