@@ -14,7 +14,7 @@
     "dev:http": "FRONTEND_DEV=true tsx src/web-server.ts",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:full": "concurrently \"npm run dev:http\" \"npm run dev:frontend\"",
-    "start": "MODELIT_TRANSPORT=http node dist/web-server.js",
+    "start": "MODELIT_TRANSPORT=http MODELIT_HTTP_HOST=0.0.0.0 node dist/index.js",
     "start:mcp": "MODELIT_TRANSPORT=http node dist/index.js",
     "start:http": "MODELIT_TRANSPORT=http node dist/index.js",
     "start:web": "node dist/web-server.js",
