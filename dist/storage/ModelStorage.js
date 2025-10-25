@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ScenarioStorage = exports.ModelStorage = void 0;
 const fs_1 = require("fs");
 const path_1 = require("path");
-const Model_1 = require("../models/Model");
+const Model_1 = require("models/Model");
 class ModelStorage {
     constructor(config) {
         this.config = config;

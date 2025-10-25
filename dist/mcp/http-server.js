@@ -7,8 +7,8 @@ exports.ModelitHTTPServer = void 0;
 const express_1 = __importDefault(require("express"));
 const http_1 = require("http");
 const ws_1 = require("ws");
-const http_transport_1 = require("./http-transport");
-const server_1 = require("./server");
+const http_transport_1 = require("mcp/http-transport");
+const server_1 = require("mcp/server");
 class ModelitHTTPServer {
     constructor(config) {
         this.config = config;

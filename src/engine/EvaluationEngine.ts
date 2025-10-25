@@ -1,7 +1,7 @@
-import { Model } from '../models/Model';
-import { Variable } from '../models/Variable';
-import { DependencyGraph } from '../graph/DependencyGraph';
-import { ExpressionParser } from './ExpressionParser';
+import { Model } from 'models/Model';
+import { Variable } from 'models/Variable';
+import { DependencyGraph } from 'graph/DependencyGraph';
+import { ExpressionParser } from 'engine/ExpressionParser';
 
 export interface EvaluationContext {
   timeSteps: number;

@@ -14,11 +14,11 @@ const defaultStorageDir = join(homedir(), '.modelit', 'models');
 const storageDirectory = process.env.MODELIT_STORAGE_DIR || defaultStorageDir;
 
 // Initialize the MCP server components directly
-import { Model } from './models/Model';
-import { Variable } from './models/Variable';
-import { EvaluationEngine } from './engine/EvaluationEngine';
-import { ModelStorage } from './storage/ModelStorage';
-import { DependencyGraph } from './graph/DependencyGraph';
+import { Model } from 'models/Model';
+import { Variable } from 'models/Variable';
+import { EvaluationEngine } from 'engine/EvaluationEngine';
+import { ModelStorage } from 'storage/ModelStorage';
+import { DependencyGraph } from 'graph/DependencyGraph';
 
 const engine = new EvaluationEngine();
 const storage = new ModelStorage({

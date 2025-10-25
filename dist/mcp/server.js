@@ -4,11 +4,11 @@ exports.ModelitMCPServer = void 0;
 const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
 const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
-const Model_1 = require("../models/Model");
-const Variable_1 = require("../models/Variable");
-const EvaluationEngine_1 = require("../engine/EvaluationEngine");
-const ModelStorage_1 = require("../storage/ModelStorage");
-const DependencyGraph_1 = require("../graph/DependencyGraph");
+const Model_1 = require("models/Model");
+const Variable_1 = require("models/Variable");
+const EvaluationEngine_1 = require("engine/EvaluationEngine");
+const ModelStorage_1 = require("storage/ModelStorage");
+const DependencyGraph_1 = require("graph/DependencyGraph");
 class ModelitMCPServer {
     constructor(storageDirectory = './models') {
         this.currentModel = null;

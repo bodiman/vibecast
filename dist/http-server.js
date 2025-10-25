@@ -15,11 +15,11 @@ app.use((0, cors_1.default)());
 const defaultStorageDir = (0, path_1.join)((0, os_1.homedir)(), '.modelit', 'models');
 const storageDirectory = process.env.MODELIT_STORAGE_DIR || defaultStorageDir;
 // Initialize the MCP server components directly
-const Model_1 = require("./models/Model");
-const Variable_1 = require("./models/Variable");
-const EvaluationEngine_1 = require("./engine/EvaluationEngine");
-const ModelStorage_1 = require("./storage/ModelStorage");
-const DependencyGraph_1 = require("./graph/DependencyGraph");
+const Model_1 = require("models/Model");
+const Variable_1 = require("models/Variable");
+const EvaluationEngine_1 = require("engine/EvaluationEngine");
+const ModelStorage_1 = require("storage/ModelStorage");
+const DependencyGraph_1 = require("graph/DependencyGraph");
 const engine = new EvaluationEngine_1.EvaluationEngine();
 const storage = new ModelStorage_1.ModelStorage({
     baseDirectory: storageDirectory,

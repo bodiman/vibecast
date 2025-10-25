@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const server_1 = require("./mcp/server");
-const http_server_1 = require("./mcp/http-server");
+const server_1 = require("mcp/server");
+const http_server_1 = require("mcp/http-server");
 const path_1 = require("path");
 const os_1 = require("os");
 async function main() {

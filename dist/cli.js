@@ -4,9 +4,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const fs_1 = require("fs");
 const path_1 = require("path");
 // CLI imports
-const EvaluationEngine_1 = require("./engine/EvaluationEngine");
-const ModelStorage_1 = require("./storage/ModelStorage");
-const http_server_1 = require("./mcp/http-server");
+const EvaluationEngine_1 = require("engine/EvaluationEngine");
+const ModelStorage_1 = require("storage/ModelStorage");
+const http_server_1 = require("mcp/http-server");
 function parseArgs(args) {
     const options = {};
     for (let i = 0; i < args.length; i++) {

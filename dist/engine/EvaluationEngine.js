@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EvaluationEngine = void 0;
-const Model_1 = require("../models/Model");
-const DependencyGraph_1 = require("../graph/DependencyGraph");
-const ExpressionParser_1 = require("./ExpressionParser");
+const Model_1 = require("models/Model");
+const DependencyGraph_1 = require("graph/DependencyGraph");
+const ExpressionParser_1 = require("engine/ExpressionParser");
 class EvaluationEngine {
     constructor() {
         this.parser = new ExpressionParser_1.ExpressionParser();

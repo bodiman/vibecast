@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
-import { Model, ModelData } from '../models/Model';
+import { Model, ModelData } from 'models/Model';
 
 export interface StorageConfig {
   baseDirectory: string;

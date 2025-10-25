@@ -6,6 +6,16 @@
     "lib": ["ES2018"],
     "outDir": "./dist",
     "rootDir": "./src",
+    "baseUrl": "./src",
+    "paths": {
+      "*": ["*"],
+      "models/*": ["models/*"],
+      "engine/*": ["engine/*"],
+      "mcp/*": ["mcp/*"],
+      "storage/*": ["storage/*"],
+      "graph/*": ["graph/*"],
+      "utils/*": ["utils/*"]
+    },
     "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
