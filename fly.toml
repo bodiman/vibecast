@@ -1,5 +1,10 @@
-app = 'modelit-mcp-server'
-primary_region = 'sjc'
+# fly.toml app configuration file generated for vibecast on 2025-10-25T11:46:30Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'vibecast'
+primary_region = 'iad'
 
 [build]
 
@@ -11,26 +16,8 @@ primary_region = 'sjc'
   min_machines_running = 0
   processes = ['app']
 
-  [http_service.checks]
-    [http_service.checks.alive]
-      grace_period = '10s'
-      headers = {}
-      interval = '30s'
-      method = 'GET'
-      path = '/api/health'
-      protocol = 'http'
-      restart_limit = 0
-      timeout = '5s'
-
 [[vm]]
-  memory = '256mb'
+  memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
-
-[[env]]
-  MODELIT_TRANSPORT = "http"
-  MODELIT_HTTP_PORT = "3000"
-  MODELIT_HTTP_HOST = "0.0.0.0"
-
-[processes]
-  app = 'npm start'
+  memory_mb = 1024
