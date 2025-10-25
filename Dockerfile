@@ -1,30 +1,21 @@
-# Use Node.js LTS version
+# Simulate Railway's Nixpacks build process
 FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files and install production dependencies only
+# Copy package files
 COPY package*.json ./
-RUN npm ci --only=production
 
-# Copy pre-built JavaScript files (built locally)
-COPY dist/ ./dist/
+# Install dependencies (including dev dependencies for build)
+RUN npm ci
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+# Copy source code and config
+COPY src/ ./src/
+COPY tsconfig.json ./
 
-# Change ownership of the app directory
-RUN chown -R nodejs:nodejs /app
-USER nodejs
+# Build the TypeScript project (this is what Railway does)
+RUN npm run build
 
-# Expose the port
-EXPOSE 3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
-
-# Start the HTTP server
+# Start the server
 CMD ["node", "dist/http-server.js"]
