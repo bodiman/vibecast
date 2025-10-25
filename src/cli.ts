@@ -2,11 +2,11 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { Model } from './models/Model.js';
+import { Model } from './models/Model';
 // CLI imports
-import { EvaluationEngine } from './engine/EvaluationEngine.js';
-import { ModelStorage } from './storage/ModelStorage.js';
-import { ModelitHTTPServer } from './mcp/http-server.js';
+import { EvaluationEngine } from './engine/EvaluationEngine';
+import { ModelStorage } from './storage/ModelStorage';
+import { ModelitHTTPServer } from './mcp/http-server';
 
 interface CLIOptions {
   help?: boolean;
@@ -323,7 +323,7 @@ async function main(): Promise<void> {
 }
 
 // Run CLI if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (require.main === module) {
   main().catch(error => {
     console.error('Unhandled error:', error);
     process.exit(1);
