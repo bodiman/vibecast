@@ -326,10 +326,16 @@ async function handleValidateModel() {
     };
 }
 // Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Modelit HTTP Server running on port ${PORT}`);
-    console.log(`Storage directory: ${storageDirectory}`);
-    console.log(`Health check: http://localhost:${PORT}/api/health`);
-    console.log(`Available tools: http://localhost:${PORT}/api/tools`);
+const PORT = parseInt(process.env.PORT || '3000', 10);
+const HOST = process.env.HOST || '0.0.0.0';
+console.log(`Starting Modelit HTTP Server...`);
+console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`Target host: ${HOST}`);
+console.log(`Target port: ${PORT}`);
+console.log(`Storage directory: ${storageDirectory}`);
+app.listen(PORT, HOST, () => {
+    console.log(`✅ Modelit HTTP Server successfully running on ${HOST}:${PORT}`);
+    console.log(`✅ Health check endpoint: http://${HOST}:${PORT}/api/health`);
+    console.log(`✅ Available tools endpoint: http://${HOST}:${PORT}/api/tools`);
+    console.log(`✅ Server is ready to accept connections`);
 });
