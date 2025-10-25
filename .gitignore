@@ -47,7 +47,9 @@ temp/
 
 # Model storage (for development)
 .modelit/
-models/
+# Note: DO NOT ignore src/models/ - that's our source code!
+# Only ignore model storage files in root
+/models/
 
 # Jest cache
 .jest/
