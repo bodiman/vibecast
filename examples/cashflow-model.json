@@ -1,0 +1,98 @@
+{
+  "name": "Cashflow Forecast",
+  "description": "Example cashflow forecasting model demonstrating time-dependent variables",
+  "variables": [
+    {
+      "name": "REVENUE",
+      "type": "parameter",
+      "values": [100, 110, 121],
+      "metadata": {
+        "description": "Monthly revenue",
+        "units": "thousands USD"
+      }
+    },
+    {
+      "name": "COGS",
+      "formula": "REVENUE * 0.3",
+      "dependencies": ["REVENUE"],
+      "type": "scalar",
+      "metadata": {
+        "description": "Cost of goods sold",
+        "units": "thousands USD"
+      }
+    },
+    {
+      "name": "SGA",
+      "type": "parameter",
+      "values": [25, 25, 25],
+      "metadata": {
+        "description": "Selling, general & administrative expenses",
+        "units": "thousands USD"
+      }
+    },
+    {
+      "name": "EBITDA",
+      "formula": "REVENUE - COGS - SGA",
+      "dependencies": ["REVENUE", "COGS", "SGA"],
+      "type": "scalar",
+      "metadata": {
+        "description": "Earnings before interest, taxes, depreciation & amortization",
+        "units": "thousands USD"
+      }
+    },
+    {
+      "name": "CAPEX",
+      "type": "parameter",
+      "values": [10, 15, 5],
+      "metadata": {
+        "description": "Capital expenditures",
+        "units": "thousands USD"
+      }
+    },
+    {
+      "name": "WORKING_CAPITAL_CHANGE",
+      "type": "parameter",
+      "values": [-5, -3, 2],
+      "metadata": {
+        "description": "Change in working capital (negative = cash inflow)",
+        "units": "thousands USD"
+      }
+    },
+    {
+      "name": "CASH_FLOW_FROM_OPERATIONS",
+      "formula": "EBITDA - WORKING_CAPITAL_CHANGE",
+      "dependencies": ["EBITDA", "WORKING_CAPITAL_CHANGE"],
+      "type": "scalar",
+      "metadata": {
+        "description": "Operating cash flow",
+        "units": "thousands USD"
+      }
+    },
+    {
+      "name": "FREE_CASH_FLOW",
+      "formula": "CASH_FLOW_FROM_OPERATIONS - CAPEX",
+      "dependencies": ["CASH_FLOW_FROM_OPERATIONS", "CAPEX"],
+      "type": "scalar",
+      "metadata": {
+        "description": "Free cash flow",
+        "units": "thousands USD"
+      }
+    },
+    {
+      "name": "CASH_BALANCE",
+      "formula": "CASH_BALANCE[t-1] + FREE_CASH_FLOW[t]",
+      "dependencies": ["CASH_BALANCE[t-1]", "FREE_CASH_FLOW[t]"],
+      "type": "series",
+      "values": [50],
+      "metadata": {
+        "description": "Running cash balance (time-dependent)",
+        "units": "thousands USD"
+      }
+    }
+  ],
+  "metadata": {
+    "created": "2024-10-25T00:00:00.000Z",
+    "version": "1.0.0",
+    "author": "Modelit Example"
+  }
+}
