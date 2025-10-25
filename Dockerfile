@@ -7,25 +7,19 @@ WORKDIR /app
 # Copy package files first for better caching
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci
 
-# Copy TypeScript configuration
+# Copy TypeScript configuration and source code
 COPY tsconfig.json ./
-
-# Copy source code
 COPY src/ ./src/
-
-# Install TypeScript and build dependencies
-RUN npm install -g typescript
-RUN npm install --save-dev typescript @types/node
 
 # Build the TypeScript project
 RUN npm run build
 
-# Remove dev dependencies and TypeScript files to reduce image size
+# Remove dev dependencies and source files to reduce image size
 RUN npm prune --production
-RUN rm -rf src/ tsconfig.json
+RUN rm -rf src/ tsconfig.json node_modules/@types/ node_modules/typescript/
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs
