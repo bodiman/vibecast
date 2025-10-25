@@ -1,22 +1,19 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ScenarioStorage = exports.ModelStorage = void 0;
-const fs_1 = require("fs");
-const path_1 = require("path");
-const Model_1 = require("models/Model");
-class ModelStorage {
+import { promises as fs } from 'fs';
+import { join, dirname } from 'path';
+import { Model } from '../models/Model.js';
+export class ModelStorage {
     constructor(config) {
         this.config = config;
     }
     async saveModel(model) {
         const filePath = this.getModelPath(model.name);
         if (this.config.createDirectories) {
-            await this.ensureDirectoryExists((0, path_1.dirname)(filePath));
+            await this.ensureDirectoryExists(dirname(filePath));
         }
         const modelData = model.toJSON();
         const jsonString = JSON.stringify(modelData, null, 2);
         try {
-            await fs_1.promises.writeFile(filePath, jsonString, 'utf-8');
+            await fs.writeFile(filePath, jsonString, 'utf-8');
         }
         catch (error) {
             throw new Error(`Failed to save model '${model.name}': ${error instanceof Error ? error.message : String(error)}`);
@@ -25,9 +22,9 @@ class ModelStorage {
     async loadModel(name) {
         const filePath = this.getModelPath(name);
         try {
-            const jsonString = await fs_1.promises.readFile(filePath, 'utf-8');
+            const jsonString = await fs.readFile(filePath, 'utf-8');
             const modelData = JSON.parse(jsonString);
-            return Model_1.Model.fromJSON(modelData);
+            return Model.fromJSON(modelData);
         }
         catch (error) {
             if (error.code === 'ENOENT') {
@@ -39,7 +36,7 @@ class ModelStorage {
     async deleteModel(name) {
         const filePath = this.getModelPath(name);
         try {
-            await fs_1.promises.unlink(filePath);
+            await fs.unlink(filePath);
         }
         catch (error) {
             if (error.code === 'ENOENT') {
@@ -50,7 +47,7 @@ class ModelStorage {
     }
     async listModels() {
         try {
-            const files = await fs_1.promises.readdir(this.config.baseDirectory);
+            const files = await fs.readdir(this.config.baseDirectory);
             return files
                 .filter(file => file.endsWith('.json'))
                 .map(file => file.replace('.json', ''));
@@ -65,10 +62,10 @@ class ModelStorage {
     async modelExists(name) {
         const filePath = this.getModelPath(name);
         try {
-            await fs_1.promises.access(filePath);
+            await fs.access(filePath);
             return true;
         }
-        catch (_a) {
+        catch {
             return false;
         }
     }
@@ -82,7 +79,7 @@ class ModelStorage {
         };
         const jsonString = JSON.stringify(exportData, null, 2);
         try {
-            await fs_1.promises.writeFile(outputPath, jsonString, 'utf-8');
+            await fs.writeFile(outputPath, jsonString, 'utf-8');
         }
         catch (error) {
             throw new Error(`Failed to export model '${name}': ${error instanceof Error ? error.message : String(error)}`);
@@ -90,11 +87,11 @@ class ModelStorage {
     }
     async importModel(filePath) {
         try {
-            const jsonString = await fs_1.promises.readFile(filePath, 'utf-8');
+            const jsonString = await fs.readFile(filePath, 'utf-8');
             const importData = JSON.parse(jsonString);
             // Handle both direct model data and wrapped export format
             const modelData = importData.model || importData;
-            const model = Model_1.Model.fromJSON(modelData);
+            const model = Model.fromJSON(modelData);
             // Save the imported model
             await this.saveModel(model);
             return model;
@@ -106,7 +103,7 @@ class ModelStorage {
     async getModelInfo(name) {
         const filePath = this.getModelPath(name);
         try {
-            const stats = await fs_1.promises.stat(filePath);
+            const stats = await fs.stat(filePath);
             const model = await this.loadModel(name);
             return {
                 name,
@@ -122,19 +119,18 @@ class ModelStorage {
     getModelPath(name) {
         // Sanitize model name for filesystem
         const sanitizedName = name.replace(/[^a-zA-Z0-9_-]/g, '_');
-        return (0, path_1.join)(this.config.baseDirectory, `${sanitizedName}.json`);
+        return join(this.config.baseDirectory, `${sanitizedName}.json`);
     }
     async ensureDirectoryExists(path) {
         try {
-            await fs_1.promises.mkdir(path, { recursive: true });
+            await fs.mkdir(path, { recursive: true });
         }
         catch (error) {
             throw new Error(`Failed to create directory '${path}': ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 }
-exports.ModelStorage = ModelStorage;
-class ScenarioStorage {
+export class ScenarioStorage {
     constructor(storage) {
         this.storage = storage;
     }
@@ -149,7 +145,7 @@ class ScenarioStorage {
         const filePath = this.getScenarioPath(modelName, scenarioName);
         const jsonString = JSON.stringify(scenarioData, null, 2);
         try {
-            await fs_1.promises.writeFile(filePath, jsonString, 'utf-8');
+            await fs.writeFile(filePath, jsonString, 'utf-8');
         }
         catch (error) {
             throw new Error(`Failed to save scenario '${scenarioName}': ${error instanceof Error ? error.message : String(error)}`);
@@ -158,7 +154,7 @@ class ScenarioStorage {
     async loadScenario(modelName, scenarioName) {
         const filePath = this.getScenarioPath(modelName, scenarioName);
         try {
-            const jsonString = await fs_1.promises.readFile(filePath, 'utf-8');
+            const jsonString = await fs.readFile(filePath, 'utf-8');
             return JSON.parse(jsonString);
         }
         catch (error) {
@@ -169,9 +165,9 @@ class ScenarioStorage {
         }
     }
     async listScenarios(modelName) {
-        const scenarioDir = (0, path_1.join)(this.storage['config'].baseDirectory, 'scenarios', modelName);
+        const scenarioDir = join(this.storage['config'].baseDirectory, 'scenarios', modelName);
         try {
-            const files = await fs_1.promises.readdir(scenarioDir);
+            const files = await fs.readdir(scenarioDir);
             return files
                 .filter(file => file.endsWith('.json'))
                 .map(file => file.replace('.json', ''));
@@ -186,7 +182,6 @@ class ScenarioStorage {
     getScenarioPath(modelName, scenarioName) {
         const sanitizedModel = modelName.replace(/[^a-zA-Z0-9_-]/g, '_');
         const sanitizedScenario = scenarioName.replace(/[^a-zA-Z0-9_-]/g, '_');
-        return (0, path_1.join)(this.storage['config'].baseDirectory, 'scenarios', sanitizedModel, `${sanitizedScenario}.json`);
+        return join(this.storage['config'].baseDirectory, 'scenarios', sanitizedModel, `${sanitizedScenario}.json`);
     }
 }
-exports.ScenarioStorage = ScenarioStorage;

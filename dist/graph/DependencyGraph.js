@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.DependencyGraph = void 0;
-class DependencyGraph {
+export class DependencyGraph {
     constructor() {
         this.nodes = new Map();
         this.edges = [];
@@ -235,4 +232,3 @@ class DependencyGraph {
         };
     }
 }
-exports.DependencyGraph = DependencyGraph;

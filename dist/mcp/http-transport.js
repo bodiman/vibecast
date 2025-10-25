@@ -1,11 +1,5 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.HTTPTransport = exports.WebSocketTransport = void 0;
-const ws_1 = __importDefault(require("ws"));
-class WebSocketTransport {
+import WebSocket from 'ws';
+export class WebSocketTransport {
     constructor(ws) {
         this.messageHandlers = new Set();
         this.closeHandlers = new Set();
@@ -34,7 +28,7 @@ class WebSocketTransport {
         // WebSocket is already connected when this transport is created
     }
     async send(message) {
-        if (this.ws.readyState === ws_1.default.OPEN) {
+        if (this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(message));
         }
         else {
@@ -42,7 +36,7 @@ class WebSocketTransport {
         }
     }
     async close() {
-        if (this.ws.readyState === ws_1.default.OPEN) {
+        if (this.ws.readyState === WebSocket.OPEN) {
             this.ws.close();
         }
     }
@@ -56,8 +50,7 @@ class WebSocketTransport {
         this.errorHandlers.add(handler);
     }
 }
-exports.WebSocketTransport = WebSocketTransport;
-class HTTPTransport {
+export class HTTPTransport {
     constructor() {
         this.messageHandlers = new Set();
         this.closeHandlers = new Set();
@@ -92,4 +85,3 @@ class HTTPTransport {
         this.messageHandlers.forEach(handler => handler(message));
     }
 }
-exports.HTTPTransport = HTTPTransport;

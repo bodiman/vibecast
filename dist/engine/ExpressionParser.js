@@ -1,10 +1,7 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ExpressionParser = void 0;
-const mathjs_1 = require("mathjs");
-class ExpressionParser {
+import { create, all } from 'mathjs';
+export class ExpressionParser {
     constructor() {
-        this.math = (0, mathjs_1.create)(mathjs_1.all, {
+        this.math = create(all, {
             number: 'BigNumber',
             precision: 64
         });
@@ -139,4 +136,3 @@ class ExpressionParser {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 }
-exports.ExpressionParser = ExpressionParser;

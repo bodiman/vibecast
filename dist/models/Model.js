@@ -1,20 +1,17 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Model = exports.ModelSchema = void 0;
-const Variable_1 = require("models/Variable");
-const zod_1 = require("zod");
-exports.ModelSchema = zod_1.z.object({
-    name: zod_1.z.string().min(1),
-    description: zod_1.z.string().optional(),
-    variables: zod_1.z.array(zod_1.z.unknown()),
-    metadata: zod_1.z.object({
-        created: zod_1.z.union([zod_1.z.date(), zod_1.z.string()]).optional(),
-        updated: zod_1.z.union([zod_1.z.date(), zod_1.z.string()]).optional(),
-        version: zod_1.z.string().optional(),
-        author: zod_1.z.string().optional(),
+import { Variable } from './Variable.js';
+import { z } from 'zod';
+export const ModelSchema = z.object({
+    name: z.string().min(1),
+    description: z.string().optional(),
+    variables: z.array(z.unknown()),
+    metadata: z.object({
+        created: z.union([z.date(), z.string()]).optional(),
+        updated: z.union([z.date(), z.string()]).optional(),
+        version: z.string().optional(),
+        author: z.string().optional(),
     }).optional(),
 });
-class Model {
+export class Model {
     constructor(data) {
         this.name = data.name;
         this.description = data.description;
@@ -27,7 +24,7 @@ class Model {
         this.variableMap = new Map();
         if (data.variables) {
             for (const varData of data.variables) {
-                const variable = Variable_1.Variable.fromJSON(varData);
+                const variable = Variable.fromJSON(varData);
                 this.variableMap.set(variable.name, variable);
             }
         }
@@ -62,7 +59,7 @@ class Model {
             throw new Error(`Variable '${name}' not found`);
         }
         const updatedData = { ...existing.toJSON(), ...updates };
-        const updatedVariable = new Variable_1.Variable(updatedData);
+        const updatedVariable = new Variable(updatedData);
         this.validateVariableDependencies(updatedVariable);
         this.variableMap.set(name, updatedVariable);
         this.touch();
@@ -170,7 +167,7 @@ class Model {
         };
     }
     static fromJSON(data) {
-        const parsed = exports.ModelSchema.parse(data);
+        const parsed = ModelSchema.parse(data);
         const processedData = {
             ...parsed,
             name: parsed.name || 'Untitled Model',
@@ -183,4 +180,3 @@ class Model {
         return new Model(processedData);
     }
 }
-exports.Model = Model;

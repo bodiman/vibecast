@@ -1,31 +1,26 @@
 #!/usr/bin/env node
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const cors_1 = __importDefault(require("cors"));
-const path_1 = require("path");
-const os_1 = require("os");
-const app = (0, express_1.default)();
-app.use(express_1.default.json());
-app.use((0, cors_1.default)());
+import express from 'express';
+import cors from 'cors';
+import { join } from 'path';
+import { homedir } from 'os';
+const app = express();
+app.use(express.json());
+app.use(cors());
 // Create MCP server instance
-const defaultStorageDir = (0, path_1.join)((0, os_1.homedir)(), '.modelit', 'models');
+const defaultStorageDir = join(homedir(), '.modelit', 'models');
 const storageDirectory = process.env.MODELIT_STORAGE_DIR || defaultStorageDir;
 // Initialize the MCP server components directly
-const Model_1 = require("models/Model");
-const Variable_1 = require("models/Variable");
-const EvaluationEngine_1 = require("engine/EvaluationEngine");
-const ModelStorage_1 = require("storage/ModelStorage");
-const DependencyGraph_1 = require("graph/DependencyGraph");
-const engine = new EvaluationEngine_1.EvaluationEngine();
-const storage = new ModelStorage_1.ModelStorage({
+import { Model } from './models/Model.js';
+import { Variable } from './models/Variable.js';
+import { EvaluationEngine } from './engine/EvaluationEngine.js';
+import { ModelStorage } from './storage/ModelStorage.js';
+import { DependencyGraph } from './graph/DependencyGraph.js';
+const engine = new EvaluationEngine();
+const storage = new ModelStorage({
     baseDirectory: storageDirectory,
     createDirectories: true,
 });
-const graph = new DependencyGraph_1.DependencyGraph();
+const graph = new DependencyGraph();
 // Health check endpoint
 app.get('/api/health', (_req, res) => {
     res.json({
@@ -182,7 +177,7 @@ let currentModel = null;
 // Tool handlers (simplified versions of MCP server handlers)
 async function handleCreateModel(args) {
     const { name, description } = args;
-    currentModel = new Model_1.Model({
+    currentModel = new Model({
         name,
         description,
         metadata: {
@@ -217,7 +212,7 @@ async function handleSaveModel(args) {
     }
     const modelName = args.name || currentModel.name;
     const modelToSave = args.name ?
-        new Model_1.Model({ ...currentModel.toJSON(), name: modelName }) :
+        new Model({ ...currentModel.toJSON(), name: modelName }) :
         currentModel;
     await storage.saveModel(modelToSave);
     return {
@@ -246,7 +241,7 @@ async function handleCreateVariable(args) {
     if (!currentModel) {
         throw new Error('No current model. Create or load a model first.');
     }
-    const variable = new Variable_1.Variable(args);
+    const variable = new Variable(args);
     currentModel.addVariable(variable);
     return {
         content: [

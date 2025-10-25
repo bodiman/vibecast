@@ -1,22 +1,16 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ModelitHTTPServer = void 0;
-const express_1 = __importDefault(require("express"));
-const http_1 = require("http");
-const ws_1 = require("ws");
-const http_transport_1 = require("mcp/http-transport");
-const server_1 = require("mcp/server");
-class ModelitHTTPServer {
+import express from 'express';
+import { createServer } from 'http';
+import { WebSocketServer } from 'ws';
+import { WebSocketTransport } from './http-transport.js';
+import { ModelitMCPServer } from './server.js';
+export class ModelitHTTPServer {
     constructor(config) {
         this.config = config;
-        this.app = (0, express_1.default)();
-        this.mcpServer = new server_1.ModelitMCPServer(config.storageDirectory);
+        this.app = express();
+        this.mcpServer = new ModelitMCPServer(config.storageDirectory);
         this.setupMiddleware();
         this.setupRoutes();
-        this.server = (0, http_1.createServer)(this.app);
+        this.server = createServer(this.app);
         this.setupWebSocket();
     }
     setupMiddleware() {
@@ -33,7 +27,7 @@ class ModelitHTTPServer {
             }
         });
         // Parse JSON bodies
-        this.app.use(express_1.default.json({ limit: '50mb' }));
+        this.app.use(express.json({ limit: '50mb' }));
         // Log requests
         this.app.use((req, _res, next) => {
             console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
@@ -52,7 +46,6 @@ class ModelitHTTPServer {
         });
         // MCP endpoint for direct HTTP requests
         this.app.post('/mcp', async (req, res) => {
-            var _a;
             try {
                 const message = req.body;
                 // For now, just handle tools/list as a demonstration
@@ -112,7 +105,7 @@ class ModelitHTTPServer {
                         message: 'Internal error',
                         data: error instanceof Error ? error.message : String(error)
                     },
-                    id: ((_a = req.body) === null || _a === void 0 ? void 0 : _a.id) || null
+                    id: req.body?.id || null
                 });
             }
         });
@@ -154,11 +147,11 @@ class ModelitHTTPServer {
         });
     }
     setupWebSocket() {
-        this.wss = new ws_1.WebSocketServer({ server: this.server, path: '/ws' });
+        this.wss = new WebSocketServer({ server: this.server, path: '/ws' });
         this.wss.on('connection', async (ws) => {
             console.log('WebSocket client connected');
             try {
-                const transport = new http_transport_1.WebSocketTransport(ws);
+                const transport = new WebSocketTransport(ws);
                 await this.mcpServer.connect(transport);
                 ws.on('close', () => {
                     console.log('WebSocket client disconnected');
@@ -200,4 +193,3 @@ class ModelitHTTPServer {
         });
     }
 }
-exports.ModelitHTTPServer = ModelitHTTPServer;

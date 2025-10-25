@@ -1,18 +1,15 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ModelitMCPServer = void 0;
-const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
-const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
-const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
-const Model_1 = require("models/Model");
-const Variable_1 = require("models/Variable");
-const EvaluationEngine_1 = require("engine/EvaluationEngine");
-const ModelStorage_1 = require("storage/ModelStorage");
-const DependencyGraph_1 = require("graph/DependencyGraph");
-class ModelitMCPServer {
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
+import { Model } from '../models/Model.js';
+import { Variable } from '../models/Variable.js';
+import { EvaluationEngine } from '../engine/EvaluationEngine.js';
+import { ModelStorage } from '../storage/ModelStorage.js';
+import { DependencyGraph } from '../graph/DependencyGraph.js';
+export class ModelitMCPServer {
     constructor(storageDirectory = './models') {
         this.currentModel = null;
-        this.server = new index_js_1.Server({
+        this.server = new Server({
             name: 'modelit-server',
             version: '0.1.0',
         }, {
@@ -20,16 +17,16 @@ class ModelitMCPServer {
                 tools: {},
             },
         });
-        this.engine = new EvaluationEngine_1.EvaluationEngine();
-        this.storage = new ModelStorage_1.ModelStorage({
+        this.engine = new EvaluationEngine();
+        this.storage = new ModelStorage({
             baseDirectory: storageDirectory,
             createDirectories: true,
         });
-        this.graph = new DependencyGraph_1.DependencyGraph();
+        this.graph = new DependencyGraph();
         this.setupHandlers();
     }
     setupHandlers() {
-        this.server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => ({
+        this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
             tools: [
                 {
                     name: 'create_model',
@@ -178,7 +175,7 @@ class ModelitMCPServer {
                 },
             ],
         }));
-        this.server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
+        this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const { name, arguments: args } = request.params;
             try {
                 switch (name) {
@@ -226,7 +223,7 @@ class ModelitMCPServer {
     }
     async handleCreateModel(args) {
         const { name, description } = args;
-        this.currentModel = new Model_1.Model({
+        this.currentModel = new Model({
             name,
             description,
             metadata: {
@@ -261,7 +258,7 @@ class ModelitMCPServer {
         }
         const modelName = args.name || this.currentModel.name;
         const modelToSave = args.name ?
-            new Model_1.Model({ ...this.currentModel.toJSON(), name: modelName }) :
+            new Model({ ...this.currentModel.toJSON(), name: modelName }) :
             this.currentModel;
         await this.storage.saveModel(modelToSave);
         return {
@@ -290,7 +287,7 @@ class ModelitMCPServer {
         if (!this.currentModel) {
             throw new Error('No current model. Create or load a model first.');
         }
-        const variable = new Variable_1.Variable(args);
+        const variable = new Variable(args);
         this.currentModel.addVariable(variable);
         return {
             content: [
@@ -482,11 +479,10 @@ class ModelitMCPServer {
         };
     }
     async run() {
-        const transport = new stdio_js_1.StdioServerTransport();
+        const transport = new StdioServerTransport();
         await this.server.connect(transport);
     }
     async connect(transport) {
         await this.server.connect(transport);
     }
 }
-exports.ModelitMCPServer = ModelitMCPServer;

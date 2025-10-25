@@ -1,12 +1,10 @@
 #!/usr/bin/env node
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const fs_1 = require("fs");
-const path_1 = require("path");
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 // CLI imports
-const EvaluationEngine_1 = require("engine/EvaluationEngine");
-const ModelStorage_1 = require("storage/ModelStorage");
-const http_server_1 = require("mcp/http-server");
+import { EvaluationEngine } from './engine/EvaluationEngine.js';
+import { ModelStorage } from './storage/ModelStorage.js';
+import { ModelitHTTPServer } from './mcp/http-server.js';
 function parseArgs(args) {
     const options = {};
     for (let i = 0; i < args.length; i++) {
@@ -100,12 +98,12 @@ Examples:
 `);
 }
 function printVersion() {
-    const packageJsonPath = (0, path_1.resolve)(process.cwd(), 'package.json');
+    const packageJsonPath = resolve(process.cwd(), 'package.json');
     try {
-        const packageJson = JSON.parse((0, fs_1.readFileSync)(packageJsonPath, 'utf-8'));
+        const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
         console.log(`Modelit CLI v${packageJson.version}`);
     }
-    catch (_a) {
+    catch {
         console.log('Modelit CLI v0.1.0');
     }
 }
@@ -125,8 +123,8 @@ async function main() {
     if (options.httpServer) {
         const port = options.port || 3000;
         const host = options.host || 'localhost';
-        const storageDir = options.storage || (0, path_1.resolve)(process.env.HOME || '~', '.modelit', 'models');
-        const httpServer = new http_server_1.ModelitHTTPServer({
+        const storageDir = options.storage || resolve(process.env.HOME || '~', '.modelit', 'models');
+        const httpServer = new ModelitHTTPServer({
             port,
             host,
             storageDirectory: storageDir
@@ -141,12 +139,12 @@ async function main() {
         });
         return;
     }
-    const storageDir = options.storage || (0, path_1.resolve)(process.env.HOME || '~', '.modelit', 'models');
-    const storage = new ModelStorage_1.ModelStorage({
+    const storageDir = options.storage || resolve(process.env.HOME || '~', '.modelit', 'models');
+    const storage = new ModelStorage({
         baseDirectory: storageDir,
         createDirectories: true,
     });
-    const engine = new EvaluationEngine_1.EvaluationEngine();
+    const engine = new EvaluationEngine();
     try {
         // Handle list command
         if (options.list) {
@@ -165,14 +163,14 @@ async function main() {
         }
         // Handle import command
         if (options.import) {
-            const importPath = (0, path_1.resolve)(options.import);
+            const importPath = resolve(options.import);
             const model = await storage.importModel(importPath);
             console.log(`Imported model: ${model.name}`);
             return;
         }
         // Handle export command
         if (options.export && options.model) {
-            const exportPath = (0, path_1.resolve)(options.export);
+            const exportPath = resolve(options.export);
             await storage.exportModel(options.model, exportPath);
             console.log(`Exported model '${options.model}' to ${exportPath}`);
             return;
@@ -185,7 +183,7 @@ async function main() {
                 console.log(`Loaded model: ${model.name}`);
             }
             catch (error) {
-                console.error(`Failed to load model '${options.model}': ${(error === null || error === void 0 ? void 0 : error.message) || String(error)}`);
+                console.error(`Failed to load model '${options.model}': ${error?.message || String(error)}`);
                 process.exit(1);
             }
         }
@@ -221,7 +219,7 @@ async function main() {
             const order = graph.getTopologicalOrder();
             order.forEach((name, index) => {
                 const node = graph.getNode(name);
-                const deps = (node === null || node === void 0 ? void 0 : node.dependencies.length) ? ` (depends on: ${node.dependencies.join(', ')})` : '';
+                const deps = node?.dependencies.length ? ` (depends on: ${node.dependencies.join(', ')})` : '';
                 console.log(`  ${index + 1}. ${name}${deps}`);
             });
             return;
@@ -249,9 +247,8 @@ async function main() {
                 }
                 console.log(`Model evaluation completed in ${result.executionTime}ms:`);
                 Object.entries(result.values).forEach(([name, values]) => {
-                    var _a;
                     const variable = model.getVariable(name);
-                    const units = ((_a = variable === null || variable === void 0 ? void 0 : variable.metadata) === null || _a === void 0 ? void 0 : _a.units) ? ` ${variable.metadata.units}` : '';
+                    const units = variable?.metadata?.units ? ` ${variable.metadata.units}` : '';
                     console.log(`  ${name}: [${values.map(v => v.toFixed(2)).join(', ')}]${units}`);
                 });
             }
@@ -276,7 +273,7 @@ async function main() {
     }
 }
 // Run CLI if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     main().catch(error => {
         console.error('Unhandled error:', error);
         process.exit(1);

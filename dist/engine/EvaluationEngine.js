@@ -1,13 +1,10 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.EvaluationEngine = void 0;
-const Model_1 = require("models/Model");
-const DependencyGraph_1 = require("graph/DependencyGraph");
-const ExpressionParser_1 = require("engine/ExpressionParser");
-class EvaluationEngine {
+import { Model } from '../models/Model.js';
+import { DependencyGraph } from '../graph/DependencyGraph.js';
+import { ExpressionParser } from './ExpressionParser.js';
+export class EvaluationEngine {
     constructor() {
-        this.parser = new ExpressionParser_1.ExpressionParser();
-        this.graph = new DependencyGraph_1.DependencyGraph();
+        this.parser = new ExpressionParser();
+        this.graph = new DependencyGraph();
     }
     async evaluateModel(model, timeSteps = 1) {
         const startTime = Date.now();
@@ -112,7 +109,6 @@ class EvaluationEngine {
         }
     }
     evaluateVariableFormula(variable, context, timeStep, model) {
-        var _a, _b, _c, _d, _e, _f;
         if (!variable.formula) {
             throw new Error(`Variable '${variable.name}' has no formula`);
         }
@@ -140,10 +136,10 @@ class EvaluationEngine {
             else if (refTimeStep >= context.timeSteps) {
                 // For future time steps, use the last available value
                 const lastTimeStep = context.timeSteps - 1;
-                evalContext[timeRef.originalText] = (_b = (_a = context.variables[timeRef.variable]) === null || _a === void 0 ? void 0 : _a[lastTimeStep]) !== null && _b !== void 0 ? _b : 0;
+                evalContext[timeRef.originalText] = context.variables[timeRef.variable]?.[lastTimeStep] ?? 0;
             }
             else {
-                evalContext[timeRef.originalText] = (_d = (_c = context.variables[timeRef.variable]) === null || _c === void 0 ? void 0 : _c[refTimeStep]) !== null && _d !== void 0 ? _d : 0;
+                evalContext[timeRef.originalText] = context.variables[timeRef.variable]?.[refTimeStep] ?? 0;
                 // Time reference retrieved
             }
         }
@@ -154,7 +150,7 @@ class EvaluationEngine {
                 continue;
             }
             // Use current time step value
-            evalContext[depName] = (_f = (_e = context.variables[depName]) === null || _e === void 0 ? void 0 : _e[timeStep]) !== null && _f !== void 0 ? _f : 0;
+            evalContext[depName] = context.variables[depName]?.[timeStep] ?? 0;
         }
         return this.parser.evaluateExpression(variable.formula, evalContext);
     }
@@ -172,7 +168,7 @@ class EvaluationEngine {
             // Get all dependencies
             const allDeps = model.getAllDependencies(variableName);
             // Create a subset model with only required variables
-            const subModel = new Model_1.Model({ name: `${model.name}_subset` });
+            const subModel = new Model({ name: `${model.name}_subset` });
             // Add the target variable and all its dependencies
             for (const depName of allDeps) {
                 const depVar = model.getVariable(depName);
@@ -223,4 +219,3 @@ class EvaluationEngine {
         return results;
     }
 }
-exports.EvaluationEngine = EvaluationEngine;

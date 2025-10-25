@@ -1,4 +1,4 @@
-import { Variable, VariableInput } from 'models/Variable';
+import { Variable, VariableInput } from './Variable.js';
 import { z } from 'zod';
 
 export const ModelSchema = z.object({

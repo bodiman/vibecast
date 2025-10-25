@@ -1,33 +1,30 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Variable = exports.VariableInputSchema = exports.VariableSchema = exports.VariableMetadataSchema = exports.VariableTypeSchema = void 0;
-const zod_1 = require("zod");
-exports.VariableTypeSchema = zod_1.z.enum(['scalar', 'series', 'parameter']);
-exports.VariableMetadataSchema = zod_1.z.object({
-    units: zod_1.z.string().optional(),
-    description: zod_1.z.string().optional(),
-    source: zod_1.z.string().optional(),
-    tags: zod_1.z.array(zod_1.z.string()).optional(),
+import { z } from 'zod';
+export const VariableTypeSchema = z.enum(['scalar', 'series', 'parameter']);
+export const VariableMetadataSchema = z.object({
+    units: z.string().optional(),
+    description: z.string().optional(),
+    source: z.string().optional(),
+    tags: z.array(z.string()).optional(),
 }).optional();
-exports.VariableSchema = zod_1.z.object({
-    name: zod_1.z.string().min(1),
-    formula: zod_1.z.string().optional(),
-    dependencies: zod_1.z.array(zod_1.z.string()).default([]),
-    type: exports.VariableTypeSchema.default('scalar'),
-    values: zod_1.z.array(zod_1.z.number()).optional(),
-    metadata: exports.VariableMetadataSchema,
+export const VariableSchema = z.object({
+    name: z.string().min(1),
+    formula: z.string().optional(),
+    dependencies: z.array(z.string()).default([]),
+    type: VariableTypeSchema.default('scalar'),
+    values: z.array(z.number()).optional(),
+    metadata: VariableMetadataSchema,
 });
-exports.VariableInputSchema = zod_1.z.object({
-    name: zod_1.z.string().min(1),
-    formula: zod_1.z.string().optional(),
-    dependencies: zod_1.z.array(zod_1.z.string()).optional(),
-    type: exports.VariableTypeSchema.optional(),
-    values: zod_1.z.array(zod_1.z.number()).optional(),
-    metadata: exports.VariableMetadataSchema,
+export const VariableInputSchema = z.object({
+    name: z.string().min(1),
+    formula: z.string().optional(),
+    dependencies: z.array(z.string()).optional(),
+    type: VariableTypeSchema.optional(),
+    values: z.array(z.number()).optional(),
+    metadata: VariableMetadataSchema,
 });
-class Variable {
+export class Variable {
     constructor(data) {
-        const validated = exports.VariableInputSchema.parse(data);
+        const validated = VariableInputSchema.parse(data);
         this.name = validated.name;
         this.formula = validated.formula;
         this.type = validated.type || 'scalar';
@@ -93,7 +90,6 @@ class Variable {
         };
     }
     static fromJSON(data) {
-        return new Variable(exports.VariableSchema.parse(data));
+        return new Variable(VariableSchema.parse(data));
     }
 }
-exports.Variable = Variable;

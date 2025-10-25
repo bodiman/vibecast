@@ -1,5 +1,5 @@
-import { Variable } from 'models/Variable';
-import { Model } from 'models/Model';
+import { Variable } from '../models/Variable.js';
+import { Model } from '../models/Model.js';
 
 export interface GraphNode {
   name: string;

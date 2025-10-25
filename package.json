@@ -2,6 +2,7 @@
   "name": "modelit-mcp-server",
   "version": "0.1.0",
   "description": "MCP server for transparent, traceable mathematical models",
+  "type": "module",
   "main": "dist/index.js",
   "bin": {
     "modelit": "dist/cli.js"

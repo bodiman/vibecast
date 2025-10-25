@@ -1,13 +1,11 @@
 #!/usr/bin/env node
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const server_1 = require("mcp/server");
-const http_server_1 = require("mcp/http-server");
-const path_1 = require("path");
-const os_1 = require("os");
+import { ModelitMCPServer } from './mcp/server.js';
+import { ModelitHTTPServer } from './mcp/http-server.js';
+import { join } from 'path';
+import { homedir } from 'os';
 async function main() {
     // Default storage directory in user's home directory
-    const defaultStorageDir = (0, path_1.join)((0, os_1.homedir)(), '.modelit', 'models');
+    const defaultStorageDir = join(homedir(), '.modelit', 'models');
     // Get configuration from environment variables
     const storageDirectory = process.env.MODELIT_STORAGE_DIR || defaultStorageDir;
     const transport = process.env.MODELIT_TRANSPORT || 'stdio';
@@ -16,7 +14,7 @@ async function main() {
     try {
         if (transport === 'http') {
             // Start HTTP server
-            const httpServer = new http_server_1.ModelitHTTPServer({
+            const httpServer = new ModelitHTTPServer({
                 port,
                 host,
                 storageDirectory
@@ -29,7 +27,7 @@ async function main() {
         }
         else {
             // Start stdio server (default)
-            const server = new server_1.ModelitMCPServer(storageDirectory);
+            const server = new ModelitMCPServer(storageDirectory);
             // Log startup info to stderr (won't interfere with MCP protocol on stdout/stdin)
             console.error(`Modelit MCP Server starting in stdio mode...`);
             console.error(`Storage directory: ${storageDirectory}`);
