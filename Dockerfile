@@ -35,4 +35,4 @@ USER nodejs
 EXPOSE 3000
 
 # Start the server
-CMD ["npm", "start"]
+CMD ["sh", "-c", "MODELIT_TRANSPORT=http MODELIT_HTTP_HOST=0.0.0.0 MODELIT_HTTP_PORT=${PORT:-3000} npm start"]
