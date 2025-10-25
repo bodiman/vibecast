@@ -176,12 +176,14 @@ function Edge({
   edge, 
   sourcePosition, 
   targetPosition, 
-  onClick 
+  onClick,
+  isHighlighted = false
 }: { 
   edge: GraphEdge;
   sourcePosition: [number, number, number];
   targetPosition: [number, number, number];
   onClick: () => void;
+  isHighlighted?: boolean;
 }) {
   const lineRef = useRef<THREE.BufferGeometry>(null);
   const [hovered, setHovered] = useState(false);
@@ -221,9 +223,9 @@ function Edge({
         </bufferGeometry>
         <lineBasicMaterial 
           color={color} 
-          linewidth={hovered ? 3 : 1}
+          linewidth={hovered || isHighlighted ? 3 : 1}
           transparent
-          opacity={hovered ? 1 : 0.6}
+          opacity={hovered || isHighlighted ? 1 : 0.6}
         />
       </line>
       
@@ -251,6 +253,7 @@ function Scene({
   layoutAlgorithm?: 'force' | 'circular' | 'hierarchical';
 }) {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [nodePositions, setNodePositions] = useState<Record<string, [number, number, number]>>({});
   const [layoutEnabled, setLayoutEnabled] = useState(true);
   const [isHovering, setIsHovering] = useState(false);
@@ -318,11 +321,15 @@ function Scene({
   }, [data, layoutAlgorithm]);
   
   // Handle hover state changes
-  const handleNodeHover = useCallback((hovered: boolean) => {
+  const handleNodeHover = useCallback((nodeId: string | null, hovered: boolean) => {
     if (hovered) {
       hoverCountRef.current++;
+      setHoveredNode(nodeId);
     } else {
       hoverCountRef.current = Math.max(0, hoverCountRef.current - 1);
+      if (hoverCountRef.current === 0) {
+        setHoveredNode(null);
+      }
     }
     setIsHovering(hoverCountRef.current > 0);
   }, []);
@@ -501,7 +508,7 @@ function Scene({
             onClick={() => handleNodeClick(node)}
             isSelected={selectedNode === node.id}
             onPositionChange={(pos) => handleNodePositionChange(node.id, pos)}
-            onHoverChange={handleNodeHover}
+            onHoverChange={(hovered) => handleNodeHover(node.id, hovered)}
           />
         );
       })}
@@ -513,6 +520,11 @@ function Scene({
         
         if (!sourcePos || !targetPos) return null;
         
+        // Determine if this edge should be highlighted
+        const isHighlighted = hoveredNode && (
+          edge.source === hoveredNode || edge.target === hoveredNode
+        );
+        
         return (
           <Edge
             key={edge.id}
@@ -520,6 +532,7 @@ function Scene({
             sourcePosition={sourcePos}
             targetPosition={targetPos}
             onClick={() => handleEdgeClick(edge)}
+            isHighlighted={isHighlighted}
           />
         );
       })}
@@ -528,6 +541,142 @@ function Scene({
       <gridHelper args={[20, 20, '#333333', '#333333']} />
     </>
   );
+}
+
+// NodeInfoCard component for detailed node information
+function NodeInfoCard({ 
+  node, 
+  data, 
+  onClose,
+  position = { x: 20, y: 20 }
+}: {
+  node: GraphNode;
+  data: GraphData;
+  onClose: () => void;
+  position?: { x: number; y: number };
+}) {
+  // Calculate dependencies
+  const incomingEdges = data.edges.filter(edge => edge.target === node.id);
+  const outgoingEdges = data.edges.filter(edge => edge.source === node.id);
+  
+  // Get dependency nodes
+  const dependencies = incomingEdges.map(edge => {
+    const sourceNode = data.nodes.find(n => n.id === edge.source);
+    return { edge, node: sourceNode };
+  }).filter(dep => dep.node);
+  
+  const dependents = outgoingEdges.map(edge => {
+    const targetNode = data.nodes.find(n => n.id === edge.target);
+    return { edge, node: targetNode };
+  }).filter(dep => dep.node);
+
+  return (
+    <div 
+      className="fixed bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-4 max-w-md min-w-72 z-50"
+      style={{ left: position.x, top: position.y }}
+    >
+      {/* Header */}
+      <div className="flex justify-between items-start mb-3">
+        <div>
+          <h3 className="text-white font-bold text-lg">{node.name}</h3>
+          <p className="text-gray-400 text-sm capitalize">{node.type}</p>
+        </div>
+        <button 
+          onClick={onClose}
+          className="text-gray-400 hover:text-white text-xl leading-none"
+        >
+          ×
+        </button>
+      </div>
+
+      {/* Description */}
+      {node.metadata?.description && (
+        <div className="mb-3">
+          <p className="text-gray-300 text-sm">{node.metadata.description}</p>
+        </div>
+      )}
+
+      {/* Values */}
+      {node.values && node.values.length > 0 && (
+        <div className="mb-3">
+          <h4 className="text-white font-semibold text-sm mb-1">Values</h4>
+          <div className="text-gray-300 text-sm">
+            {node.values.length === 1 ? (
+              <span>{node.values[0]}{node.metadata?.units && ` ${node.metadata.units}`}</span>
+            ) : (
+              <span>{node.values.length} data points: [{node.values.slice(0, 3).join(', ')}{node.values.length > 3 ? '...' : ''}]{node.metadata?.units && ` ${node.metadata.units}`}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Formula */}
+      {node.type === 'formula' && node.metadata?.formula && (
+        <div className="mb-3">
+          <h4 className="text-white font-semibold text-sm mb-1">Formula</h4>
+          <code className="text-green-400 text-sm bg-gray-800 px-2 py-1 rounded">
+            {node.metadata.formula}
+          </code>
+        </div>
+      )}
+
+      {/* Dependencies */}
+      {dependencies.length > 0 && (
+        <div className="mb-3">
+          <h4 className="text-white font-semibold text-sm mb-2">Dependencies</h4>
+          <div className="space-y-1">
+            {dependencies.map(({ edge, node: depNode }) => (
+              <div key={edge.id} className="flex items-center text-sm">
+                <div 
+                  className="w-3 h-0.5 mr-2"
+                  style={{ backgroundColor: getEdgeColor(edge.type) }}
+                ></div>
+                <span className="text-gray-300">{depNode?.name}</span>
+                <span className="text-gray-500 ml-auto text-xs capitalize">{edge.type}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Dependents */}
+      {dependents.length > 0 && (
+        <div className="mb-3">
+          <h4 className="text-white font-semibold text-sm mb-2">Affects</h4>
+          <div className="space-y-1">
+            {dependents.map(({ edge, node: depNode }) => (
+              <div key={edge.id} className="flex items-center text-sm">
+                <div 
+                  className="w-3 h-0.5 mr-2"
+                  style={{ backgroundColor: getEdgeColor(edge.type) }}
+                ></div>
+                <span className="text-gray-300">{depNode?.name}</span>
+                <span className="text-gray-500 ml-auto text-xs capitalize">{edge.type}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* No dependencies message */}
+      {dependencies.length === 0 && dependents.length === 0 && (
+        <div className="text-gray-500 text-sm">
+          No dependencies or relationships found.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Helper function to get edge colors
+function getEdgeColor(edgeType: string): string {
+  switch (edgeType) {
+    case 'formula': return '#f59e0b'; // Amber
+    case 'temporal': return '#8b5cf6'; // Purple
+    case 'causal': return '#ef4444'; // Red
+    case 'derived': return '#10b981'; // Emerald
+    default: return '#6b7280'; // Gray
+  }
 }
 
 // Main GraphViewer3D component
@@ -541,6 +690,45 @@ export default function GraphViewer3D({
   height = 600
 }: GraphViewer3DProps) {
   console.log('GraphViewer3D render:', { nodeCount: data.nodes.length, edgeCount: data.edges.length });
+  
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [infoCardNode, setInfoCardNode] = useState<GraphNode | null>(null);
+
+  const handleNodeClick = useCallback((node: GraphNode) => {
+    setInfoCardNode(prev => prev?.id === node.id ? null : node);
+    onNodeClick?.(node);
+  }, [onNodeClick]);
+
+  const handleCloseInfoCard = useCallback(() => {
+    setInfoCardNode(null);
+  }, []);
+
+  // Close info card when clicking outside or pressing escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setInfoCardNode(null);
+      }
+    };
+
+    const handleClickOutside = (e: MouseEvent) => {
+      // Only close if clicking on the canvas area, not on the info card
+      if (canvasRef.current && canvasRef.current.contains(e.target as Node)) {
+        const target = e.target as HTMLElement;
+        if (!target.closest('.node-info-card')) {
+          setInfoCardNode(null);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('click', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, []);
   
   // Show loading state if no data
   if (!data || data.nodes.length === 0) {
@@ -556,7 +744,7 @@ export default function GraphViewer3D({
   }
   
   return (
-    <div style={{ width, height, position: 'relative' }}>
+    <div ref={canvasRef} style={{ width, height, position: 'relative' }}>
       <Canvas
         camera={{ 
           position: [10, 10, 10], 
@@ -570,7 +758,7 @@ export default function GraphViewer3D({
       >
         <Scene 
           data={data}
-          onNodeClick={onNodeClick}
+          onNodeClick={handleNodeClick}
           onEdgeClick={onEdgeClick}
           onLayoutChange={onLayoutChange}
           layoutAlgorithm={layoutAlgorithm}
@@ -584,6 +772,18 @@ export default function GraphViewer3D({
         />
         {/* Stats removed to prevent overlay issues */}
       </Canvas>
+      
+      {/* Info Card Overlay */}
+      {infoCardNode && (
+        <div className="node-info-card">
+          <NodeInfoCard
+            node={infoCardNode}
+            data={data}
+            onClose={handleCloseInfoCard}
+            position={{ x: 20, y: 20 }}
+          />
+        </div>
+      )}
       
       {/* Controls hint */}
       <div className="absolute bottom-4 left-4 bg-gray-900 bg-opacity-90 backdrop-blur text-white p-3 rounded-lg border border-gray-700">

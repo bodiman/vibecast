@@ -1,13 +1,14 @@
-HTTP/1.1 200 OK
-X-Powered-By: Express
-Access-Control-Allow-Origin: *
-Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
-Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization, Mcp-Session-Id
-Mcp-Session-Id: 77b497f5-53ac-47b4-839e-38b2f42cb18f
-Content-Type: application/json; charset=utf-8
-Content-Length: 214
-ETag: W/"d6-qZmNlPH7UvaGjKnK70yfcbyPPdw"
-Date: Sat, 25 Oct 2025 21:19:40 GMT
-Connection: keep-alive
-Keep-Alive: timeout=5
+HTTP/2 200 
+x-powered-by: Express
+access-control-allow-origin: *
+access-control-allow-methods: GET, POST, PUT, DELETE, OPTIONS
+access-control-allow-headers: Origin, X-Requested-With, Content-Type, Accept, Authorization, Mcp-Session-Id
+mcp-session-id: 1ea8ecb0-053e-432b-ab71-176c9be7be6e
+content-type: application/json; charset=utf-8
+content-length: 214
+etag: W/"d6-qZmNlPH7UvaGjKnK70yfcbyPPdw"
+date: Sat, 25 Oct 2025 23:07:01 GMT
+server: Fly/3e4898000 (2025-10-23)
+via: 2 fly.io, 2 fly.io
+fly-request-id: 01K8ET05DNVFXHH941CTGGMHXS-sjc
 

@@ -84,7 +84,7 @@ export class ModelitHTTPServer {
         
         console.log(`MCP Request: ${message.method} (Session: ${sessionId || 'new'})`);
         
-        const response = await this.handleMCPRequest(message, sessionId);
+        const response = await this.handleMCPRequest(message, sessionId, !!sessionId);
         
         // Add session ID to response headers if available
         if (response.sessionId) {
@@ -144,6 +144,149 @@ export class ModelitHTTPServer {
       });
     });
 
+    // ChatGPT Action endpoints
+    this.app.get('/.well-known/ai-plugin.json', (req, res) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.json({
+        schema_version: "v1",
+        name_for_human: "Modelit Mathematical Models",
+        name_for_model: "modelit",
+        description_for_human: "Create, manage, and evaluate mathematical models with automatic dependency tracking and 3D visualization.",
+        description_for_model: "A tool for creating and managing mathematical models. You can create models, add variables with formulas, evaluate them, and visualize the dependency graphs. Variables can reference other variables in their formulas, and the system automatically creates dependency edges.",
+        auth: {
+          type: "none"
+        },
+        api: {
+          type: "openapi",
+          url: `https://${req.get('host')}/openapi-simple.json`,
+          has_user_authentication: false
+        },
+        logo_url: `https://${req.get('host')}/logo.png`,
+        contact_email: "support@modelit.com",
+        legal_info_url: `https://${req.get('host')}/legal`
+      });
+    });
+
+    // Simplified OpenAPI spec for ChatGPT Actions
+    this.app.get('/openapi-simple.json', (req, res) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.json({
+        openapi: "3.0.1",
+        info: {
+          title: "Modelit Mathematical Models API",
+          version: "1.0.0",
+          description: "API for creating, managing, and evaluating mathematical models"
+        },
+        servers: [
+          {
+            url: `https://${req.get('host')}`
+          }
+        ],
+        paths: {
+          "/mcp": {
+            post: {
+              summary: "Execute MCP command",
+              description: "Execute a Model Context Protocol command",
+              requestBody: {
+                required: true,
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        jsonrpc: { type: "string", enum: ["2.0"] },
+                        id: { type: ["string", "number"] },
+                        method: { type: "string" },
+                        params: { type: "object" }
+                      },
+                      required: ["jsonrpc", "id", "method"]
+                    }
+                  }
+                }
+              },
+              responses: {
+                "200": {
+                  description: "MCP response",
+                  content: {
+                    "application/json": {
+                      schema: {
+                        type: "object",
+                        properties: {
+                          jsonrpc: { type: "string" },
+                          id: { type: ["string", "number"] },
+                          result: { type: "object" },
+                          error: { type: "object" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+    });
+
+    this.app.get('/openapi.json', (req, res) => {
+      res.json({
+        openapi: "3.0.1",
+        info: {
+          title: "Modelit Mathematical Models API",
+          version: "1.0.0",
+          description: "API for creating, managing, and evaluating mathematical models with automatic dependency tracking"
+        },
+        servers: [
+          {
+            url: `https://${req.get('host')}`
+          }
+        ],
+        paths: {
+          "/mcp": {
+            post: {
+              summary: "MCP Protocol Endpoint",
+              description: "Main endpoint for Model Context Protocol communication. Use this for all model operations.",
+              requestBody: {
+                required: true,
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        jsonrpc: { type: "string", enum: ["2.0"] },
+                        id: { type: ["string", "number"] },
+                        method: { type: "string" },
+                        params: { type: "object" }
+                      },
+                      required: ["jsonrpc", "id", "method"]
+                    }
+                  }
+                }
+              },
+              responses: {
+                "200": {
+                  description: "MCP response",
+                  content: {
+                    "application/json": {
+                      schema: {
+                        type: "object",
+                        properties: {
+                          jsonrpc: { type: "string" },
+                          id: { type: ["string", "number"] },
+                          result: { type: "object" },
+                          error: { type: "object" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+    });
+
     // REST API endpoints for graph data
     this.setupAPIRoutes();
 
@@ -151,59 +294,61 @@ export class ModelitHTTPServer {
     this.setupGraphViewer();
   }
 
-  private async handleMCPRequest(message: JSONRPCRequest, sessionId?: string): Promise<{ message: JSONRPCResponse; sessionId?: string }> {
+  private async handleMCPRequest(message: JSONRPCRequest, sessionId?: string, hadSessionId?: boolean): Promise<{ message: JSONRPCResponse; sessionId?: string }> {
     try {
       // Handle initialize method specially
       if (message.method === 'initialize') {
         return await this.handleInitialize(message);
       }
 
-      // For other methods, require existing session
+      // For other methods, create a session if none exists
+      let session;
       if (!sessionId) {
-        return {
-          message: {
-            jsonrpc: '2.0',
-            error: {
-              code: -32602,
-              message: 'Session required',
-              data: 'All methods except initialize require a valid session ID'
-            },
-            id: message.id
-          } as unknown as JSONRPCResponse
-        };
-      }
+        // Create a temporary session for stateless operation
+        session = this.sessionManager.createSession();
+        session.state = SessionState.Ready;
+        session.clientInfo = { name: 'stateless-client', version: '1.0.0' };
+        sessionId = session.id;
+      } else {
+        session = this.sessionManager.getSession(sessionId);
+        if (!session) {
+          return {
+            message: {
+              jsonrpc: '2.0',
+              error: {
+                code: -32602,
+                message: 'Invalid session',
+                data: 'Session not found or expired'
+              },
+              id: message.id
+            } as unknown as JSONRPCResponse
+          };
+        }
 
-      const session = this.sessionManager.getSession(sessionId);
-      if (!session) {
-        return {
-          message: {
-            jsonrpc: '2.0',
-            error: {
-              code: -32602,
-              message: 'Invalid session',
-              data: 'Session not found or expired'
-            },
-            id: message.id
-          } as unknown as JSONRPCResponse
-        };
-      }
-
-      if (session.state !== SessionState.Ready) {
-        return {
-          message: {
-            jsonrpc: '2.0',
-            error: {
-              code: -32602,
-              message: 'Session not ready',
-              data: 'Session must be initialized before making requests'
-            },
-            id: message.id
-          } as unknown as JSONRPCResponse
-        };
+        if (session.state !== SessionState.Ready) {
+          return {
+            message: {
+              jsonrpc: '2.0',
+              error: {
+                code: -32602,
+                message: 'Session not ready',
+                data: 'Session must be initialized before making requests'
+              },
+              id: message.id
+            } as unknown as JSONRPCResponse
+          };
+        }
       }
 
       // Route the request based on method
-      return await this.routeMCPMethod(message, sessionId);
+      const result = await this.routeMCPMethod(message, sessionId);
+      
+      // If we created a new session, include it in the response
+      if (!hadSessionId) {
+        result.sessionId = sessionId;
+      }
+      
+      return result;
       
     } catch (error) {
       console.error('MCP request handling error:', error);
@@ -447,7 +592,7 @@ export class ModelitHTTPServer {
   }
 
   private async handleInitialize(message: JSONRPCRequest): Promise<{ message: JSONRPCResponse; sessionId: string }> {
-    const params = message.params as any;
+    const params = message.params as any || {};
     
     // Create new session
     const session = this.sessionManager.createSession();
