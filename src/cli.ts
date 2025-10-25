@@ -237,7 +237,7 @@ async function main(): Promise<void> {
         console.log('✓ Model is valid');
       } else {
         console.log('✗ Model validation failed:');
-        validation.errors.forEach(error => console.log(`  - ${error}`));
+        validation.errors.forEach((error: string) => console.log(`  - ${error}`));
       }
       return;
     }
