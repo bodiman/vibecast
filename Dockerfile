@@ -17,5 +17,5 @@ COPY tsconfig.json ./
 # Build the TypeScript project (this is what Railway does)
 RUN npm run build
 
-# Start the server
-CMD ["node", "dist/http-server.js"]
+# Start the server using npm start
+CMD ["npm", "start"]

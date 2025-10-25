@@ -368,19 +368,45 @@ async function handleValidateModel() {
   };
 }
 
-// Start server
+// Start server with Railway compatibility
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const HOST = process.env.HOST || '0.0.0.0';
 
 console.log(`Starting Modelit HTTP Server...`);
 console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`Platform: ${process.platform}`);
+console.log(`Node version: ${process.version}`);
 console.log(`Target host: ${HOST}`);
 console.log(`Target port: ${PORT}`);
 console.log(`Storage directory: ${storageDirectory}`);
+console.log(`All env vars: ${JSON.stringify(process.env, null, 2)}`);
 
-app.listen(PORT, HOST, () => {
+const server = app.listen(PORT, HOST, () => {
   console.log(`✅ Modelit HTTP Server successfully running on ${HOST}:${PORT}`);
   console.log(`✅ Health check endpoint: http://${HOST}:${PORT}/api/health`);
   console.log(`✅ Available tools endpoint: http://${HOST}:${PORT}/api/tools`);
   console.log(`✅ Server is ready to accept connections`);
+});
+
+server.on('error', (error) => {
+  console.error(`❌ Server error:`, error);
+  process.exit(1);
+});
+
+process.on('SIGTERM', () => {
+  console.log('🔄 SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
 });
