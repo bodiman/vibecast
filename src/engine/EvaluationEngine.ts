@@ -1,7 +1,7 @@
-import { Model } from '../models/Model.js';
-import { Variable } from '../models/Variable.js';
-import { DependencyGraph } from '../graph/DependencyGraph.js';
-import { ExpressionParser } from './ExpressionParser.js';
+import { Model } from '../models/Model';
+import { Variable } from '../models/Variable';
+import { DependencyGraph } from '../graph/DependencyGraph';
+import { ExpressionParser } from './ExpressionParser';
 
 export interface EvaluationContext {
   timeSteps: number;
