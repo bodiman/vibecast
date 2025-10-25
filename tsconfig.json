@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
@@ -17,6 +17,7 @@
     "allowSyntheticDefaultImports": true,
     "allowImportingTsExtensions": false,
     "noEmit": false,
+    "verbatimModuleSyntax": false,
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
