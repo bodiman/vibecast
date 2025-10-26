@@ -28,15 +28,39 @@ VibeCast Framework System provides a unified way to create, visualize, and manag
 
 - **Real-time Updates** - Activity tracking and version control**Key Features:**
 
-- **Beautiful UI** - Modern dashboard with glassmorphism design- 📚 **Distilled Context** - Curated knowledge nodes for efficient agent expertise
+- **Beautiful UI** - Modern dashboard with glassmorphism design
+- **🤖 Creao MCP Server** - AI models can access frameworks via Model Context Protocol
 
+### 🤖 Creao MCP Integration
+
+**NEW!** The Creao MCP Server enables AI models (like Claude) to programmatically interact with your framework system:
+
+- 📊 **Browse & Query** - List, search, and inspect frameworks
+- ✏️ **Create & Modify** - Build new frameworks or extend existing ones
+- 🔍 **Graph Analysis** - Query nodes and edges with filters
+- 📈 **Statistics** - Get insights about framework usage
+
+� **[Full Creao MCP Documentation →](./CREAO_MCP.md)**
+
+**Quick Start:**
+```bash
+npm run mcp:test      # Test MCP functionality
+npm run mcp:inspect   # Open MCP inspector web interface
+npm run mcp           # Start MCP server for AI clients
+```
+
+### 🧠 TribalKnowledge Extension
+
+**Modelit** also includes **TribalKnowledge** - a system for creating expert agents with persistent, evolving knowledge graphs.
+
+🔗 **[Full TribalKnowledge Documentation →](./TRIBAL_KNOWLEDGE.md)**
+
+**Key Features:**
+- �📚 **Distilled Context** - Curated knowledge nodes for efficient agent expertise
 - 🔄 **Shared Learning** - Knowledge evolves and is shared across all agents in a codespace
-
-## 🚀 Quick Start- 🌐 **Knowledge Hub** - Public/private marketplace for publishing and forking knowledge bases
-
+- 🌐 **Knowledge Hub** - Public/private marketplace for publishing and forking knowledge bases
 - 🎨 **3D Visualization** - Explore knowledge graphs visually with `/visualize` command
-
-### 1. Install Dependencies- 🎯 **Domain Expertise** - Specialized knowledge for different areas (frontend, backend, deployment, etc.)
+- 🎯 **Domain Expertise** - Specialized knowledge for different areas (frontend, backend, deployment, etc.)
 
 ```bash
 

@@ -12,6 +12,9 @@
     "dev": "tsx src/framework-server.ts",
     "dev:old": "tsx src/web-server.ts",
     "start": "tsx src/framework-server.ts",
+    "mcp": "tsx src/mcp/creao-server.ts",
+    "mcp:inspect": "npx @modelcontextprotocol/inspector tsx src/mcp/creao-server.ts",
+    "mcp:test": "tsx test-mcp.ts",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit"
