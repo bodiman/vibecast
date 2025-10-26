@@ -805,6 +805,8 @@
             canvas.addEventListener('mouseup', onMouseUp);
             canvas.addEventListener('wheel', onWheel, { passive: false });
             canvas.addEventListener('click', onClick);
+            canvas.addEventListener('dblclick', onDoubleClick);
+            canvas.addEventListener('contextmenu', onRightClick);
             canvas.addEventListener('mousemove', onMouseMoveHover);
             
             // Start rendering
@@ -858,6 +860,28 @@
         }
         
         function onMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const world = screenToWorld(x, y);
+            
+            // Check if clicking on a node in edit mode
+            if (isEditMode && e.shiftKey) {
+                const clickedNode = framework.nodes.find(node => {
+                    const dx = node.position.x - world.x;
+                    const dy = node.position.y - world.y;
+                    return Math.sqrt(dx * dx + dy * dy) < 25 / camera.zoom;
+                });
+                
+                if (clickedNode) {
+                    // Start edge creation
+                    isCreatingEdge = true;
+                    edgeCreationStart = clickedNode;
+                    canvas.style.cursor = 'crosshair';
+                    return;
+                }
+            }
+            
             isDragging = true;
             dragStart = { x: e.clientX, y: e.clientY };
         }
@@ -898,7 +922,48 @@
             }
         }
         
-        function onMouseUp() {
+        function onMouseUp(e) {
+            if (isCreatingEdge && edgeCreationStart) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const world = screenToWorld(x, y);
+                
+                // Find target node
+                const targetNode = framework.nodes.find(node => {
+                    if (node.id === edgeCreationStart.id) return false; // Can't connect to self
+                    const dx = node.position.x - world.x;
+                    const dy = node.position.y - world.y;
+                    return Math.sqrt(dx * dx + dy * dy) < 25 / camera.zoom;
+                });
+                
+                if (targetNode) {
+                    // Create new edge
+                    const edgeId = `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    const newEdge = {
+                        id: edgeId,
+                        source: edgeCreationStart.id,
+                        target: targetNode.id,
+                        type: 'dependency',
+                        metadata: {
+                            userCreated: true,
+                            createdAt: new Date().toISOString()
+                        }
+                    };
+                    
+                    framework.edges.push(newEdge);
+                    editedEdges.set(edgeId, newEdge);
+                    scheduleAutoSave();
+                    
+                    console.log(`🔗 Created edge: ${edgeCreationStart.name} → ${targetNode.name}`);
+                }
+                
+                // Reset edge creation state
+                isCreatingEdge = false;
+                edgeCreationStart = null;
+                canvas.style.cursor = isEditMode ? 'crosshair' : 'grab';
+            }
+            
             isDragging = false;
         }
         
@@ -947,6 +1012,68 @@
                 document.getElementById('sidebar-content').innerHTML = 
                     '<p style="color: #666; font-size: 13px;">Click a node or edge to see details</p>';
             }
+        }
+        
+        function onDoubleClick(e) {
+            if (!isEditMode) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const world = screenToWorld(x, y);
+            
+            // Find double-clicked node
+            const clickedNode = framework.nodes.find(node => {
+                const dx = node.position.x - world.x;
+                const dy = node.position.y - world.y;
+                return Math.sqrt(dx * dx + dy * dy) < 25 / camera.zoom;
+            });
+            
+            if (clickedNode) {
+                editNode(clickedNode);
+            } else {
+                // Double-click empty space to add node
+                addNode(e.clientX, e.clientY);
+            }
+        }
+        
+        function onRightClick(e) {
+            e.preventDefault();
+            
+            if (!isEditMode) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const world = screenToWorld(x, y);
+            
+            // Find right-clicked item
+            const clickedNode = framework.nodes.find(node => {
+                const dx = node.position.x - world.x;
+                const dy = node.position.y - world.y;
+                return Math.sqrt(dx * dx + dy * dy) < 25 / camera.zoom;
+            });
+            
+            const clickedEdge = framework.edges.find(edge => {
+                const source = framework.nodes.find(n => n.id === (typeof edge.source === 'object' ? edge.source.nodeId || edge.source.id : edge.source));
+                const target = framework.nodes.find(n => n.id === (typeof edge.target === 'object' ? edge.target.nodeId || edge.target.id : edge.target));
+                if (!source || !target) return false;
+                
+                return isPointNearLine(world.x, world.y, source.position.x, source.position.y, target.position.x, target.position.y, 8 / camera.zoom);
+            });
+            
+            if (clickedNode) {
+                selectedNode = clickedNode;
+                selectedEdge = null;
+            } else if (clickedEdge) {
+                selectedEdge = clickedEdge;
+                selectedNode = null;
+            } else {
+                selectedNode = null;
+                selectedEdge = null;
+            }
+            
+            showContextMenu(e.clientX, e.clientY);
         }
         
         function isPointNearLine(px, py, x1, y1, x2, y2, threshold) {
@@ -1249,6 +1376,28 @@
                 ctx.fillText(node.name.substring(0, 25), screen.x, screen.y + radius + 20);
             });
             
+            // Draw edge creation preview
+            if (isCreatingEdge && edgeCreationStart) {
+                const startScreen = worldToScreen(edgeCreationStart.position.x, edgeCreationStart.position.y);
+                
+                // Get current mouse position for preview
+                let mouseX = 0, mouseY = 0;
+                canvas.addEventListener('mousemove', (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    mouseX = e.clientX - rect.left;
+                    mouseY = e.clientY - rect.top;
+                });
+                
+                ctx.beginPath();
+                ctx.moveTo(startScreen.x, startScreen.y);
+                ctx.lineTo(mouseX, mouseY);
+                ctx.strokeStyle = '#ff6b35';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.setLineDash([]); // Reset line dash
+            }
+            
             // Debug: Log rendering summary (occasionally)
             if (Math.random() < 0.01) { // 1% chance to log
                 console.log(`📊 Rendered ${edgesRendered} edges and ${framework.nodes.length} nodes`);
@@ -1325,6 +1474,407 @@
             
             draw();
             requestAnimationFrame(animate);
+        }
+        
+        // Formula parsing utility (client-side version of server FormulaValidator)
+        class FormulaParser {
+            static extractSymbols(formula) {
+                if (!formula || typeof formula !== 'string') {
+                    return [];
+                }
+
+                const cleanedFormula = formula
+                    .replace(/\b(sin|cos|tan|log|ln|exp|sqrt|abs|min|max|sum|avg|count)\s*\(/g, '')
+                    .replace(/[+\-*/^(){}[\],;=<>!&|]/g, ' ')
+                    .replace(/\d+\.?\d*/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                const symbols = cleanedFormula
+                    .split(' ')
+                    .filter(symbol => symbol.length > 0 && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(symbol))
+                    .filter((symbol, index, array) => array.indexOf(symbol) === index);
+
+                return symbols;
+            }
+
+            static validateFormulaSymbols(formula, validNodeIds) {
+                const symbols = this.extractSymbols(formula);
+                const invalidSymbols = symbols.filter(symbol => !validNodeIds.includes(symbol));
+                const validSymbols = symbols.filter(symbol => validNodeIds.includes(symbol));
+
+                return {
+                    isValid: invalidSymbols.length === 0,
+                    invalidSymbols,
+                    validSymbols,
+                    allSymbols: symbols
+                };
+            }
+        }
+        
+        // Edit Mode Management
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            const editBtn = document.getElementById('edit-mode-btn');
+            const saveBtn = document.getElementById('save-btn');
+            
+            if (isEditMode) {
+                editBtn.textContent = '👁️ View';
+                editBtn.classList.add('active');
+                saveBtn.style.display = 'block';
+                document.body.classList.add('edit-mode');
+                console.log('🔧 Edit mode enabled');
+                showEditInstructions();
+            } else {
+                editBtn.textContent = '📝 Edit';
+                editBtn.classList.remove('active');
+                saveBtn.style.display = 'none';
+                document.body.classList.remove('edit-mode');
+                console.log('👁️ View mode enabled');
+            }
+        }
+        
+        // Auto-save functionality
+        function scheduleAutoSave() {
+            if (autoSaveTimeout) {
+                clearTimeout(autoSaveTimeout);
+            }
+            
+            autoSaveTimeout = setTimeout(() => {
+                if (editedNodes.size > 0 || editedEdges.size > 0) {
+                    saveChanges();
+                }
+            }, 3000); // Auto-save after 3 seconds of inactivity
+        }
+        
+        function setSaveStatus(status, message = '') {
+            const statusEl = document.getElementById('save-status');
+            statusEl.className = `save-status ${status}`;
+            statusEl.textContent = message;
+        }
+        
+        async function saveChanges() {
+            if (!isEditMode) return;
+            
+            setSaveStatus('saving', 'Saving...');
+            
+            try {
+                // Create a graph diff with all changes
+                const changes = {
+                    nodes: Array.from(editedNodes.values()),
+                    edges: Array.from(editedEdges.values())
+                };
+                
+                console.log('💾 Saving changes:', changes);
+                
+                // TODO: Send to API using GraphDiffService
+                // For now, just simulate success
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Clear tracked changes
+                editedNodes.clear();
+                editedEdges.clear();
+                
+                setSaveStatus('saved', 'Saved');
+                setTimeout(() => setSaveStatus('', ''), 3000);
+                
+            } catch (error) {
+                console.error('💥 Save failed:', error);
+                setSaveStatus('error', 'Save failed');
+            }
+        }
+        
+        // Node editing functions
+        function editNode(node) {
+            if (!isEditMode) return;
+            
+            currentEditItem = { type: 'node', data: node };
+            
+            // Populate form
+            document.getElementById('modal-title').textContent = node ? 'Edit Node' : 'Add Node';
+            document.getElementById('edit-name').value = node?.name || '';
+            document.getElementById('edit-type').value = node?.type || 'scalar';
+            document.getElementById('edit-description').value = node?.metadata?.description || '';
+            document.getElementById('edit-formula').value = node?.metadata?.formula || '';
+            document.getElementById('edit-units').value = node?.metadata?.units || '';
+            
+            // Show modal
+            document.getElementById('edit-modal').classList.add('show');
+            
+            // Set up real-time formula validation
+            const formulaInput = document.getElementById('edit-formula');
+            formulaInput.addEventListener('input', validateFormula);
+            validateFormula(); // Initial validation
+        }
+        
+        function validateFormula() {
+            const formula = document.getElementById('edit-formula').value;
+            const validationDiv = document.getElementById('formula-validation');
+            
+            if (!formula.trim()) {
+                validationDiv.textContent = '';
+                return true;
+            }
+            
+            const validNodeIds = framework.nodes.map(n => n.id);
+            const validation = FormulaParser.validateFormulaSymbols(formula, validNodeIds);
+            
+            if (validation.isValid) {
+                validationDiv.innerHTML = validation.validSymbols.length > 0 
+                    ? `<span style="color: #10b981;">✓ Valid references: ${validation.validSymbols.join(', ')}</span>`
+                    : '';
+                return true;
+            } else {
+                validationDiv.innerHTML = `<span style="color: #ef4444;">✗ Invalid references: ${validation.invalidSymbols.join(', ')}</span>`;
+                return false;
+            }
+        }
+        
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.remove('show');
+            currentEditItem = null;
+        }
+        
+        function addNode(x, y) {
+            if (!isEditMode) return;
+            
+            const worldPos = screenToWorld(x, y);
+            const newNode = {
+                id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                name: `Node_${framework.nodes.length + 1}`,
+                type: 'scalar',
+                position: { x: worldPos.x, y: worldPos.y, z: 0 },
+                metadata: {}
+            };
+            
+            editNode(newNode);
+        }
+        
+        // Context menu functions
+        function showContextMenu(x, y) {
+            if (!isEditMode) return;
+            
+            contextMenuPosition = { x, y };
+            const menu = document.getElementById('context-menu');
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+            menu.style.display = 'block';
+        }
+        
+        function hideContextMenu() {
+            document.getElementById('context-menu').style.display = 'none';
+        }
+        
+        function editSelectedItem() {
+            if (selectedNode) {
+                editNode(selectedNode);
+            } else if (selectedEdge) {
+                // TODO: Implement edge editing
+                console.log('Edge editing not yet implemented');
+            }
+            hideContextMenu();
+        }
+        
+        function deleteSelectedItem() {
+            if (!isEditMode) return;
+            
+            if (selectedNode) {
+                // Remove node and associated edges
+                framework.nodes = framework.nodes.filter(n => n.id !== selectedNode.id);
+                framework.edges = framework.edges.filter(e => e.source !== selectedNode.id && e.target !== selectedNode.id);
+                selectedNode = null;
+                scheduleAutoSave();
+            } else if (selectedEdge) {
+                // Remove edge
+                framework.edges = framework.edges.filter(e => e !== selectedEdge);
+                selectedEdge = null;
+                scheduleAutoSave();
+            }
+            
+            hideContextMenu();
+        }
+        
+        // Event listeners for edit mode
+        document.getElementById('edit-mode-btn').addEventListener('click', toggleEditMode);
+        document.getElementById('save-btn').addEventListener('click', saveChanges);
+        
+        // Form submission handler
+        document.getElementById('edit-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!validateFormula()) {
+                alert('Please fix formula validation errors before saving.');
+                return;
+            }
+            
+            const formData = {
+                name: document.getElementById('edit-name').value,
+                type: document.getElementById('edit-type').value,
+                description: document.getElementById('edit-description').value,
+                formula: document.getElementById('edit-formula').value,
+                units: document.getElementById('edit-units').value
+            };
+            
+            if (currentEditItem?.type === 'node') {
+                const node = currentEditItem.data;
+                
+                if (node.id) {
+                    // Update existing node
+                    const index = framework.nodes.findIndex(n => n.id === node.id);
+                    if (index !== -1) {
+                        framework.nodes[index].name = formData.name;
+                        framework.nodes[index].type = formData.type;
+                        framework.nodes[index].metadata = {
+                            ...framework.nodes[index].metadata,
+                            description: formData.description,
+                            formula: formData.formula,
+                            units: formData.units
+                        };
+                        
+                        // Track for auto-save
+                        editedNodes.set(node.id, framework.nodes[index]);
+                    }
+                } else {
+                    // Add new node
+                    const newNode = {
+                        ...node,
+                        name: formData.name,
+                        type: formData.type,
+                        metadata: {
+                            description: formData.description,
+                            formula: formData.formula,
+                            units: formData.units
+                        },
+                        velocity: { x: 0, y: 0 }
+                    };
+                    
+                    framework.nodes.push(newNode);
+                    editedNodes.set(newNode.id, newNode);
+                }
+                
+                // Auto-generate edges from formula if present
+                if (formData.formula) {
+                    generateEdgesFromFormula(formData.formula, node.id || currentEditItem.data.id);
+                }
+                
+                scheduleAutoSave();
+            }
+            
+            closeEditModal();
+        });
+        
+        // Generate edges from formula
+        function generateEdgesFromFormula(formula, nodeId) {
+            const validNodeIds = framework.nodes.map(n => n.id);
+            const validation = FormulaParser.validateFormulaSymbols(formula, validNodeIds);
+            
+            if (validation.isValid && validation.validSymbols.length > 0) {
+                // Remove existing formula-generated edges for this node
+                framework.edges = framework.edges.filter(e => 
+                    !(e.target === nodeId && e.type === 'dependency' && e.metadata?.generatedFromFormula)
+                );
+                
+                // Create new edges for each symbol reference
+                validation.validSymbols.forEach(symbolId => {
+                    const edgeId = `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    const newEdge = {
+                        id: edgeId,
+                        source: symbolId,
+                        target: nodeId,
+                        type: 'dependency',
+                        metadata: {
+                            generatedFromFormula: true,
+                            formula: formula
+                        }
+                    };
+                    
+                    framework.edges.push(newEdge);
+                    editedEdges.set(edgeId, newEdge);
+                });
+                
+                console.log(`🔗 Generated ${validation.validSymbols.length} dependency edges from formula`);
+            }
+        }
+        
+        // Hide context menu when clicking elsewhere
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#context-menu')) {
+                hideContextMenu();
+            }
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Only handle shortcuts if not typing in input fields
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            
+            switch (e.key) {
+                case 'Delete':
+                case 'Backspace':
+                    if (isEditMode) {
+                        deleteSelectedItem();
+                    }
+                    break;
+                    
+                case 'Escape':
+                    if (isCreatingEdge) {
+                        isCreatingEdge = false;
+                        edgeCreationStart = null;
+                        canvas.style.cursor = isEditMode ? 'crosshair' : 'grab';
+                    }
+                    closeEditModal();
+                    hideContextMenu();
+                    break;
+                    
+                case 'e':
+                case 'E':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        toggleEditMode();
+                    }
+                    break;
+                    
+                case 's':
+                case 'S':
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        if (isEditMode) {
+                            saveChanges();
+                        }
+                    }
+                    break;
+                    
+                case 'n':
+                case 'N':
+                    if (isEditMode && !e.ctrlKey && !e.metaKey) {
+                        // Add node at center of view
+                        const centerX = canvas.offsetWidth / 2;
+                        const centerY = canvas.offsetHeight / 2;
+                        addNode(centerX, centerY);
+                    }
+                    break;
+            }
+        });
+        
+        // Add instructions for users
+        function showEditInstructions() {
+            if (isEditMode) {
+                console.log(`
+🔧 EDIT MODE ACTIVE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 Double-click node: Edit properties
+📝 Double-click empty space: Add new node
+🖱️ Right-click: Context menu
+🔗 Shift+Click+Drag: Create edge between nodes
+⌨️ Delete/Backspace: Delete selected item
+⌨️ Escape: Cancel current operation
+⌨️ Ctrl+S: Save changes
+⌨️ E: Toggle edit mode
+⌨️ N: Add node at center
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                `);
+            }
         }
         
         // Load on page load
