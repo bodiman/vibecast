@@ -1,8 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Unified Framework Schema - Replaces Model and TribalKnowledge
 
 generator client {
   provider = "prisma-client-js"
@@ -13,140 +9,144 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Model represents a complete mathematical model
-model Model {
+// Framework - Unified graph structure for all types of knowledge
+model Framework {
   id          String   @id @default(cuid())
   name        String   @unique
   description String?
-  metadata    Json?    // Flexible metadata storage
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  type        String   @default("general") // 'knowledge', 'mathematical', 'workflow', 'general'
+  
+  // Graph data
+  nodes       Json     // Array of nodes with {id, name, type, metadata, position}
+  edges       Json     // Array of edges with {id, source, target, type, metadata}
+  
+  // Metadata
+  metadata    Json?    // Additional metadata (tags, category, etc.)
+  nodeCount   Int      @default(0)
+  edgeCount   Int      @default(0)
+  
+  // Versioning
   version     String   @default("1.0.0")
   
-  // Relations
-  variables   Variable[]
-  edges       Edge[]
-  marketplace MarketplaceModel?
-  versions    ModelVersion[]
+  // Ownership and visibility
+  owner       String?
+  visibility  String   @default("private") // 'private' | 'team' | 'public'
   
-  // Indexes for performance
-  @@map("models")
-}
-
-// Variable represents a single variable in a model
-model Variable {
-  id       String  @id @default(cuid())
-  name     String  
-  type     String  // 'parameter', 'series', 'scalar'
-  formula  String? // Mathematical formula (null for parameters)
-  values   Json?   // Array of values for time series
-  metadata Json?   // Time indices, units, description, etc.
-  
-  // Relations
-  model    Model   @relation(fields: [modelId], references: [id], onDelete: Cascade)
-  modelId  String
-  
-  // Edges where this variable is source or target
-  sourceEdges Edge[] @relation("SourceVariable")
-  targetEdges Edge[] @relation("TargetVariable")
-  
-  // Graph positioning for 3D visualization
-  position3D Json? // {x, y, z} coordinates
-  
-  // Indexes
-  @@unique([modelId, name])
-  @@map("variables")
-}
-
-// Edge represents a dependency relationship between variables
-model Edge {
-  id       String  @id @default(cuid())
-  type     String  @default("dependency") // 'dependency', 'temporal', 'causal', 'constraint'
-  metadata Json?   // Strength, description, etc.
-  
-  // Relations
-  model    Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
-  modelId  String
-  
-  source   Variable @relation("SourceVariable", fields: [sourceId], references: [id], onDelete: Cascade)
-  sourceId String
-  
-  target   Variable @relation("TargetVariable", fields: [targetId], references: [id], onDelete: Cascade)
-  targetId String
-  
-  // Indexes for graph queries
-  @@index([sourceId])
-  @@index([targetId])
-  @@index([modelId])
-  @@map("edges")
-}
-
-// MarketplaceModel represents published models in the marketplace
-model MarketplaceModel {
-  id          String   @id @default(cuid())
-  author      String
-  tags        String[] // Array of tags
-  category    String
-  license     String
+  // Marketplace
+  published   Boolean  @default(false)
+  publishedAt DateTime?
   stars       Int      @default(0)
   forks       Int      @default(0)
   downloads   Int      @default(0)
-  published   Boolean  @default(false)
-  publishedAt DateTime @default(now())
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
   // Relations
-  model       Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
-  modelId     String   @unique
+  activities  FrameworkActivity[]
+  versions    FrameworkVersion[]
   
-  // Dependencies (references to other marketplace models)
-  dependencies String[] // Array of model IDs
-  
-  // Full-text search indexes
-  @@index([category])
-  @@index([author])
-  @@index([stars])
-  @@index([downloads])
-  @@map("marketplace_models")
+  @@index([type])
+  @@index([owner])
+  @@index([visibility])
+  @@index([published])
+  @@map("frameworks")
 }
 
-// ModelVersion for version control
-model ModelVersion {
+// Activity log for framework evolution
+model FrameworkActivity {
+  id          String   @id @default(cuid())
+  
+  framework   Framework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  frameworkId String
+  
+  // Activity details
+  type        String   // 'created', 'node_added', 'edge_added', 'updated', 'published', etc.
+  actor       String?
+  description String?
+  metadata    Json?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([frameworkId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("framework_activities")
+}
+
+// Framework version control
+model FrameworkVersion {
   id        String   @id @default(cuid())
   version   String
-  snapshot  Json     // Complete model state at this version
+  snapshot  Json     // Complete framework state at this version
   changelog String?
   createdAt DateTime @default(now())
   
-  // Relations
-  model     Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
-  modelId   String
+  framework   Framework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  frameworkId String
   
-  @@unique([modelId, version])
-  @@map("model_versions")
+  @@unique([frameworkId, version])
+  @@map("framework_versions")
 }
 
-// Session for collaborative editing and real-time updates
+// Session for collaborative editing
 model Session {
-  id        String   @id @default(cuid())
-  userId    String?  // Optional user identification
-  modelId   String?  // Current model being edited
-  data      Json?    // Session state
-  lastSeen  DateTime @default(now())
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String?
+  frameworkId String?
+  data        Json?
+  lastSeen    DateTime @default(now())
+  createdAt   DateTime @default(now())
   
-  @@index([modelId])
+  @@index([frameworkId])
   @@index([userId])
   @@map("sessions")
 }
 
-// GraphLayout for storing 3D visualization layouts
-model GraphLayout {
-  id          String @id @default(cuid())
-  modelId     String @unique
-  layoutType  String @default("force-directed") // Layout algorithm used
-  nodePositions Json  // Map of variableId -> {x, y, z}
-  settings    Json?  // Layout-specific settings
-  updatedAt   DateTime @updatedAt
+// Agent state - tracks which frameworks an agent is using
+model AgentState {
+  id          String   @id @default(cuid())
   
-  @@map("graph_layouts")
+  // Agent identification
+  agentId     String   @unique
+  agentName   String?
+  
+  // Current frameworks in context
+  frameworks  Json     // Array of framework IDs
+  
+  // Learning history
+  interactions Int      @default(0)
+  lastActive   DateTime @default(now())
+  
+  // Performance metrics
+  metrics      Json?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([lastActive])
+  @@map("agent_states")
+}
+
+// Context cache for quick access
+model ContextCache {
+  id          String   @id @default(cuid())
+  
+  // Cache key
+  frameworkId String
+  contextType String   // 'full', 'summary', 'nodes', 'edges'
+  
+  // Cached content
+  content     String   @db.Text
+  tokens      Int?
+  
+  // Cache metadata
+  version     String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  
+  @@unique([frameworkId, contextType])
+  @@index([expiresAt])
+  @@map("context_cache")
 }

@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "creao-vibecast": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx/esm",
+        "src/mcp/creao-server.ts"
+      ],
+      "env": {
+        "DATABASE_URL": "${DATABASE_URL}"
+      },
+      "description": "VibeCast Framework System MCP Server - Provides AI models with access to graph frameworks",
+      "capabilities": {
+        "tools": true,
+        "resources": true
+      }
+    }
+  }
+}

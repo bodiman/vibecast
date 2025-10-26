@@ -1,123 +1,293 @@
-# 🧮 Modelit MCP Server
+# VibeCast Framework System# 🧮 Modelit MCP Server + 🧠 TribalKnowledge
 
-## Overview
+
+
+> Unified graph visualization and management for knowledge, models, and workflows## Overview
+
 **Modelit** is an **MCP (Model Context Protocol) server** that enables both humans and LLM agents to build and inspect **transparent, traceable mathematical models**.
 
-Unlike spreadsheets, which hide logic behind cell references, Modelit captures every relationship **explicitly** as a set of symbolic equations and dependency links between variables.  
-It serves as a structured modeling backend for forecasting, analysis, and simulation — starting with **cashflow forecasting** as the primary use case.
+## 🎯 Overview
 
----
+Unlike spreadsheets, which hide logic behind cell references, Modelit captures every relationship **explicitly** as a set of symbolic equations and dependency links between variables.  
+
+VibeCast Framework System provides a unified way to create, visualize, and manage any type of graph structure. Whether you're modeling financial data, documenting knowledge, or mapping workflows, everything is a **Framework**.It serves as a structured modeling backend for forecasting, analysis, and simulation — starting with **cashflow forecasting** as the primary use case.
+
+
+
+## ✨ Features### 🧠 TribalKnowledge Extension
+
+
+
+- **Unified Structure** - One system for all graph types**NEW!** Modelit now includes **TribalKnowledge** - a system for creating expert agents with persistent, evolving knowledge graphs.
+
+- **Interactive 2D Viewer** - Modern canvas-based visualization with pan & zoom
+
+- **Multiple Types** - Mathematical, Knowledge, Workflow, and General frameworks🔗 **[Full TribalKnowledge Documentation →](./TRIBAL_KNOWLEDGE.md)**
+
+- **Clean API** - RESTful API for all operations
+
+- **Real-time Updates** - Activity tracking and version control**Key Features:**
+
+- **Beautiful UI** - Modern dashboard with glassmorphism design
+- **🤖 Creao MCP Server** - AI models can access frameworks via Model Context Protocol
+
+### 🤖 Creao MCP Integration
+
+**NEW!** The Creao MCP Server enables AI models (like Claude) to programmatically interact with your framework system:
+
+- 📊 **Browse & Query** - List, search, and inspect frameworks
+- ✏️ **Create & Modify** - Build new frameworks or extend existing ones
+- 🔍 **Graph Analysis** - Query nodes and edges with filters
+- 📈 **Statistics** - Get insights about framework usage
+
+� **[Full Creao MCP Documentation →](./CREAO_MCP.md)**
+
+**Quick Start:**
+```bash
+npm run mcp:test      # Test MCP functionality
+npm run mcp:inspect   # Open MCP inspector web interface
+npm run mcp           # Start MCP server for AI clients
+```
+
+### 🧠 TribalKnowledge Extension
+
+**Modelit** also includes **TribalKnowledge** - a system for creating expert agents with persistent, evolving knowledge graphs.
+
+🔗 **[Full TribalKnowledge Documentation →](./TRIBAL_KNOWLEDGE.md)**
+
+**Key Features:**
+- �📚 **Distilled Context** - Curated knowledge nodes for efficient agent expertise
+- 🔄 **Shared Learning** - Knowledge evolves and is shared across all agents in a codespace
+- 🌐 **Knowledge Hub** - Public/private marketplace for publishing and forking knowledge bases
+- 🎨 **3D Visualization** - Explore knowledge graphs visually with `/visualize` command
+- 🎯 **Domain Expertise** - Specialized knowledge for different areas (frontend, backend, deployment, etc.)
+
+```bash
+
+npm install---
+
+```
 
 ## 🧠 Core Concept
 
-Modelit stores and manipulates models in a **graph-based, declarative format**.
+### 2. Setup Database
 
-Each variable has:
+```bashModelit stores and manipulates models in a **graph-based, declarative format**.
+
+# Set DATABASE_URL in .env file
+
+echo 'DATABASE_URL="postgresql://user:pass@host:port/db"' > .envEach variable has:
+
 - A unique name  
-- A formula (mathematical expression)  
-- A list of dependencies  
-- Optional time-indexed behavior  
+
+# Push schema to database- A formula (mathematical expression)  
+
+npx prisma db push- A list of dependencies  
+
+```- Optional time-indexed behavior  
+
 - Optional values (for base inputs or evaluated outputs)
 
-Example:
+### 3. Create Sample Data
 
-```json
+```bashExample:
+
+node --import tsx examples/create-frameworks.ts
+
+``````json
+
 {
-  "name": "EBITDA",
-  "formula": "REVENUE - COGS - SG&A",
-  "dependencies": ["REVENUE", "COGS", "SG&A"]
-}
+
+### 4. Start Server  "name": "EBITDA",
+
+```bash  "formula": "REVENUE - COGS - SG&A",
+
+npm run dev  "dependencies": ["REVENUE", "COGS", "SG&A"]
+
+```}
+
 ```
 
-Time-dependent variables are also explicit:
+### 5. Open Dashboard
 
-```json
+Visit [http://localhost:3000/dashboard](http://localhost:3000/dashboard)Time-dependent variables are also explicit:
+
+
+
+## 📊 Framework Types```json
+
 {
-  "name": "Cash",
-  "formula": "Cash[t-1] + Revenue[t] - Expenses[t]",
-  "dependencies": ["Cash[t-1]", "Revenue[t]", "Expenses[t]"]
-}
+
+### Mathematical  "name": "Cash",
+
+For financial models, calculations, formulas  "formula": "Cash[t-1] + Revenue[t] - Expenses[t]",
+
+- Nodes: parameters, series, scalars  "dependencies": ["Cash[t-1]", "Revenue[t]", "Expenses[t]"]
+
+- Edges: formulas, causality, temporal relationships}
+
 ```
 
----
+### Knowledge  
 
-## ⚙️ Server Role
+For documentation, concepts, patterns---
 
-Modelit operates as an **MCP server** that exposes a structured model store and evaluation engine.
+- Nodes: concepts, patterns, gotchas, tools, decisions
 
-### Responsibilities
-- Maintain a persistent registry of all variables, formulas, and relationships
+- Edges: relationships, dependencies, examples## ⚙️ Server Role
+
+
+
+### WorkflowModelit operates as an **MCP server** that exposes a structured model store and evaluation engine.
+
+For processes, pipelines, stages
+
+- Nodes: stages, tasks, gates### Responsibilities
+
+- Edges: sequence, parallel, conditional- Maintain a persistent registry of all variables, formulas, and relationships
+
 - Parse and validate new model definitions
-- Construct dependency graphs
-- Evaluate formulas in topological order (supporting time-recursive definitions)
+
+### General- Construct dependency graphs
+
+For any other graph structure- Evaluate formulas in topological order (supporting time-recursive definitions)
+
 - Serve model structure and computed results to connected MCP clients (LLMs or apps)
 
+## 🌐 API Endpoints
+
 ### Clients
-Clients (human UIs or LLM agents) can:
-- Add or modify variables
-- Query dependencies
-- Request evaluations
-- Store and retrieve scenarios or parameter sets
+
+### List FrameworksClients (human UIs or LLM agents) can:
+
+```bash- Add or modify variables
+
+GET /api/frameworks- Query dependencies
+
+GET /api/frameworks?type=knowledge- Request evaluations
+
+GET /api/frameworks?visibility=public- Store and retrieve scenarios or parameter sets
+
+```
 
 ---
 
-## 🧩 Data Model
+### Get Framework
 
-### Variable
-| Field | Type | Description |
+```bash## 🧩 Data Model
+
+GET /api/frameworks/:name
+
+GET /api/frameworks/:name/graph  # Just nodes + edges### Variable
+
+```| Field | Type | Description |
+
 |--------|------|-------------|
-| `name` | string | Identifier (e.g., `Revenue`, `EBITDA`, `Cash[t]`) |
-| `formula` | string | Expression referencing other variables |
-| `dependencies` | string[] | Extracted variable references |
-| `type` | enum(`scalar`, `series`, `parameter`) | Distinguishes value type |
+
+### Create Framework| `name` | string | Identifier (e.g., `Revenue`, `EBITDA`, `Cash[t]`) |
+
+```bash| `formula` | string | Expression referencing other variables |
+
+POST /api/frameworks| `dependencies` | string[] | Extracted variable references |
+
+Content-Type: application/json| `type` | enum(`scalar`, `series`, `parameter`) | Distinguishes value type |
+
 | `values` | float[] or null | Optional time series or evaluated data |
-| `metadata` | object | Optional info (units, notes, source) |
 
----
+{| `metadata` | object | Optional info (units, notes, source) |
 
-## 🧮 Evaluation Logic
+  "name": "my-framework",
 
-1. **Dependency Graph Construction**  
-   Parse all variable relationships into a directed acyclic graph (allowing time-based recurrences).
+  "description": "Description here",---
+
+  "type": "knowledge",
+
+  "nodes": [...],## 🧮 Evaluation Logic
+
+  "edges": [...],
+
+  "metadata": {}1. **Dependency Graph Construction**  
+
+}   Parse all variable relationships into a directed acyclic graph (allowing time-based recurrences).
+
+```
 
 2. **Topological Sort**  
-   Determine evaluation order for all non-recursive relationships.
 
-3. **Iterative Evaluation**  
-   Evaluate each formula using a safe math parser (`mathjs`, `sympy`, etc.).  
-   For time-dependent variables, iterate over time steps:
-   ```
-   Cash[t] = Cash[t-1] + Revenue[t] - Expenses[t]
-   ```
+## 📁 Project Structure   Determine evaluation order for all non-recursive relationships.
 
-4. **Output Storage**  
-   Store computed values in each variable’s `values` field.
 
----
 
-## 📡 Example Workflow
+```3. **Iterative Evaluation**  
 
-### Step 1: Create Variables
+vibecast/   Evaluate each formula using a safe math parser (`mathjs`, `sympy`, etc.).  
+
+├── src/   For time-dependent variables, iterate over time steps:
+
+│   ├── api/FrameworkAPI.ts         # REST API handlers   ```
+
+│   ├── server/FrameworkServer.ts   # HTTP server   Cash[t] = Cash[t-1] + Revenue[t] - Expenses[t]
+
+│   └── framework-server.ts         # Entry point   ```
+
+├── public/
+
+│   ├── framework-dashboard.html    # Dashboard UI4. **Output Storage**  
+
+│   └── framework-viewer.html       # Graph viewer UI   Store computed values in each variable’s `values` field.
+
+├── examples/
+
+│   └── create-frameworks.ts        # Sample data generator---
+
+├── prisma/
+
+│   └── schema.prisma               # Database schema## 📡 Example Workflow
+
+└── package.json
+
+```### Step 1: Create Variables
+
 ```bash
-POST /variables
-{
-  "name": "REVENUE",
-  "values": [100, 110, 121]
-}
 
-POST /variables
+## 🛠️ DevelopmentPOST /variables
+
 {
+
+```bash  "name": "REVENUE",
+
+npm run dev        # Start server  "values": [100, 110, 121]
+
+npm test          # Run tests}
+
+npm run typecheck # Type check
+
+npm run lint      # Lint codePOST /variables
+
+```{
+
   "name": "COGS",
-  "formula": "REVENUE * 0.3",
-  "dependencies": ["REVENUE"]
-}
 
-POST /variables
-{
+## 🔗 URLs  "formula": "REVENUE * 0.3",
+
+  "dependencies": ["REVENUE"]
+
+- **Dashboard**: http://localhost:3000/dashboard}
+
+- **API**: http://localhost:3000/api/frameworks
+
+- **View Framework**: http://localhost:3000/framework/{name}POST /variables
+
+- **Health Check**: http://localhost:3000/health{
+
   "name": "EBITDA",
-  "formula": "REVENUE - COGS - SG&A",
+
+---  "formula": "REVENUE - COGS - SG&A",
+
   "dependencies": ["REVENUE", "COGS", "SG&A"]
-}
+
+Built with ❤️ by the VibeCast team}
+
 ```
 
 ### Step 2: Evaluate
