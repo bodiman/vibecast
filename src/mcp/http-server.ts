@@ -66,15 +66,7 @@ export class ModelitHTTPServer {
 
   private setupRoutes(): void {
     // Health check endpoint
-    this.app.get('/health', (_req, res) => {
-      res.json({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        server: 'Modelit MCP Server',
-        version: '0.1.0',
-        activeSessions: this.sessionManager.getActiveSessions().length
-      });
-    });
+    this.app.get('/health', (_, res) => res.send('OK'));
 
     // MCP endpoint for complete protocol support
     this.app.post('/mcp', async (req, res) => {
