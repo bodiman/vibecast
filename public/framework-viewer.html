@@ -796,16 +796,29 @@
             // Draw edges
             let edgesRendered = 0;
             framework.edges.forEach((edge, index) => {
-                const source = framework.nodes.find(n => n.id === edge.source);
-                const target = framework.nodes.find(n => n.id === edge.target);
+                // Safety check: Convert edge source/target to string if they're objects
+                let sourceId = edge.source;
+                let targetId = edge.target;
+                
+                if (typeof edge.source === 'object') {
+                    console.error(`🚨 Edge ${edge.id} has object source:`, edge.source);
+                    sourceId = edge.source?.nodeId || edge.source?.id || 'INVALID_SOURCE';
+                }
+                if (typeof edge.target === 'object') {
+                    console.error(`🚨 Edge ${edge.id} has object target:`, edge.target);
+                    targetId = edge.target?.nodeId || edge.target?.id || 'INVALID_TARGET';
+                }
+                
+                const source = framework.nodes.find(n => n.id === sourceId);
+                const target = framework.nodes.find(n => n.id === targetId);
                 
                 // Debug: Log missing node connections
                 if (!source) {
-                    console.warn(`⚠️ Edge ${edge.id} source node '${edge.source}' not found`);
+                    console.warn(`⚠️ Edge ${edge.id} source node '${sourceId}' not found. Available nodes:`, framework.nodes.map(n => n.id).slice(0, 5));
                     return;
                 }
                 if (!target) {
-                    console.warn(`⚠️ Edge ${edge.id} target node '${edge.target}' not found`);
+                    console.warn(`⚠️ Edge ${edge.id} target node '${targetId}' not found. Available nodes:`, framework.nodes.map(n => n.id).slice(0, 5));
                     return;
                 }
                 
@@ -927,6 +940,11 @@
                 ctx.textAlign = 'center';
                 ctx.fillText(node.name.substring(0, 25), screen.x, screen.y + radius + 20);
             });
+            
+            // Debug: Log rendering summary (occasionally)
+            if (Math.random() < 0.01) { // 1% chance to log
+                console.log(`📊 Rendered ${edgesRendered} edges and ${framework.nodes.length} nodes`);
+            }
         }
         
         function animate() {
@@ -962,8 +980,12 @@
             
             // Apply gentle attraction along edges
             framework.edges.forEach(edge => {
-                const source = framework.nodes.find(n => n.id === edge.source);
-                const target = framework.nodes.find(n => n.id === edge.target);
+                // Safety check: Handle object sources/targets
+                let sourceId = typeof edge.source === 'object' ? (edge.source?.nodeId || edge.source?.id) : edge.source;
+                let targetId = typeof edge.target === 'object' ? (edge.target?.nodeId || edge.target?.id) : edge.target;
+                
+                const source = framework.nodes.find(n => n.id === sourceId);
+                const target = framework.nodes.find(n => n.id === targetId);
                 
                 if (source && target) {
                     const dx = target.position.x - source.position.x;

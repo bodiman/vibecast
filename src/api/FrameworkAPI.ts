@@ -105,18 +105,72 @@ export class FrameworkAPI {
       }));
 
       // Transform edges: extract source.nodeId and target.nodeId as simple string references
-      const transformedEdges = framework.edges.map(edge => ({
-        id: edge.edgeId,
-        source: edge.source.nodeId,  // Frontend expects string, not object
-        target: edge.target.nodeId,  // Frontend expects string, not object
-        type: edge.type,
-        strength: edge.strength,
-        weight: edge.weight,
-        lag: edge.lag,
-        confidence: edge.confidence,
-        description: edge.description,
-        metadata: edge.metadata
-      }));
+      const transformedEdges = framework.edges.map((edge, index) => {
+        // Debug: Log edge structure for first few edges
+        if (index < 3) {
+          console.log(`🔍 API Edge ${index}:`, {
+            edgeId: edge.edgeId,
+            sourceObject: edge.source,
+            targetObject: edge.target,
+            sourceNodeId: edge.source?.nodeId,
+            targetNodeId: edge.target?.nodeId,
+            edgeKeys: Object.keys(edge),
+            sourceKeys: edge.source ? Object.keys(edge.source) : null,
+            targetKeys: edge.target ? Object.keys(edge.target) : null
+          });
+        }
+        
+        // Handle multiple possible data structures
+        let sourceId, targetId;
+        
+        if (typeof edge.source === 'string') {
+          sourceId = edge.source;
+        } else if (edge.source?.nodeId) {
+          sourceId = edge.source.nodeId;
+        } else if (edge.source?.id) {
+          sourceId = edge.source.id;
+        } else {
+          console.error(`❌ Could not extract source ID from edge ${edge.edgeId}:`, edge.source);
+          sourceId = 'UNKNOWN_SOURCE';
+        }
+        
+        if (typeof edge.target === 'string') {
+          targetId = edge.target;
+        } else if (edge.target?.nodeId) {
+          targetId = edge.target.nodeId;
+        } else if (edge.target?.id) {
+          targetId = edge.target.id;
+        } else {
+          console.error(`❌ Could not extract target ID from edge ${edge.edgeId}:`, edge.target);
+          targetId = 'UNKNOWN_TARGET';
+        }
+        
+        if (index < 3) {
+          console.log(`🔧 Transformed edge ${edge.edgeId}: ${sourceId} → ${targetId}`);
+        }
+        
+        return {
+          id: edge.edgeId,
+          source: sourceId,
+          target: targetId,
+          type: edge.type,
+          strength: edge.strength,
+          weight: edge.weight,
+          lag: edge.lag,
+          confidence: edge.confidence,
+          description: edge.description,
+          metadata: edge.metadata
+        };
+      });
+
+      // Debug: Log transformation results
+      console.log(`🔄 API Transformation for ${framework.name}:`, {
+        originalNodeCount: framework.nodes.length,
+        originalEdgeCount: framework.edges.length,
+        transformedNodeCount: transformedNodes.length,
+        transformedEdgeCount: transformedEdges.length,
+        sampleTransformedEdge: transformedEdges[0]
+      });
 
       res.json({
         id: framework.id,
