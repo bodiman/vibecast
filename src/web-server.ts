@@ -1,26 +1,26 @@
 #!/usr/bin/env node
 
 import { ModelitHTTPServer } from './mcp/http-server.js';
-import { join } from 'path';
-import { homedir } from 'os';
 
 async function main() {
   console.log('🚀 Starting Context Marketplace Web Server...');
   
-  const defaultStorageDir = join(homedir(), '.modelit', 'models');
-  const storageDirectory = process.env.MODELIT_STORAGE_DIR || defaultStorageDir;
   const port = parseInt(process.env.PORT || '3000', 10);
   const host = process.env.HOST || '0.0.0.0';
   const databaseUrl = process.env.DATABASE_URL;
 
-  console.log(`📁 Storage directory: ${storageDirectory}`);
-  console.log(`🗄️  Database URL: ${databaseUrl ? databaseUrl.split('@')[1] : 'None (using file storage)'}`);
+  if (!databaseUrl) {
+    console.error('❌ DATABASE_URL environment variable is required');
+    console.error('Please set DATABASE_URL to your PostgreSQL connection string');
+    process.exit(1);
+  }
+
+  console.log(`🗄️  Database: ${databaseUrl.split('@')[1]}`);
   console.log(`🌐 Starting server on ${host}:${port}`);
 
   const server = new ModelitHTTPServer({
     host,
     port,
-    storageDirectory,
     databaseUrl
   });
 

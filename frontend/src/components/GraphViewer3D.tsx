@@ -703,7 +703,9 @@ export default function GraphViewer3D({
   }
   
   return (
-    <div ref={canvasRef} style={{ width, height, position: 'relative' }}>
+    <div ref={canvasRef} style={{ width, height, position: 'relative', overflow: 'hidden' }}>
+      {/* Remove HTML test - will put info cards inside 3D scene */}
+
       <Canvas
         camera={{ 
           position: [10, 10, 10], 
@@ -712,13 +714,14 @@ export default function GraphViewer3D({
           far: 1000
         }}
         style={{ 
-          background: '#0f0f0f',
+          background: 'transparent',
           position: 'absolute',
           top: 0,
           left: 0,
-          zIndex: 1
+          width: '100%',
+          height: '100%'
         }}
-        gl={{ antialias: true, alpha: false }}
+        gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
         dpr={window.devicePixelRatio}
       >
         <Scene 
@@ -735,17 +738,123 @@ export default function GraphViewer3D({
           minDistance={5}
           maxDistance={100}
         />
-        {/* Stats removed to prevent overlay issues */}
+        
+        {/* Info Cards rendered inside 3D scene with screen positioning */}
+        <Html
+          position={[0, 0, 0]}
+          transform={false}
+          sprite={true}
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            zIndex: 1000
+          }}
+        >
+          <div 
+            style={{
+              background: infoCardNode ? 'green' : 'blue',
+              color: 'white',
+              padding: '20px',
+              border: '3px solid yellow',
+              borderRadius: '10px',
+              fontSize: '16px',
+              maxWidth: '300px',
+              pointerEvents: 'auto'
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
+              📋 {infoCardNode ? 'SELECTED NODE' : 'NO SELECTION'}
+            </h3>
+            {infoCardNode ? (
+              <>
+                <p style={{ margin: '10px 0' }}>
+                  <strong>Name:</strong> {infoCardNode.name}
+                </p>
+                <p style={{ margin: '10px 0' }}>
+                  <strong>Type:</strong> {infoCardNode.type}
+                </p>
+                <p style={{ margin: '10px 0' }}>
+                  <strong>ID:</strong> {infoCardNode.id}
+                </p>
+                {infoCardNode.values && (
+                  <p style={{ margin: '10px 0' }}>
+                    <strong>Values:</strong> {infoCardNode.values.length} items
+                  </p>
+                )}
+                
+                {/* Show Dependencies */}
+                <div style={{ marginTop: '15px' }}>
+                  <h4 style={{ margin: '5px 0', fontSize: '14px' }}>Dependencies:</h4>
+                  {data.edges
+                    .filter(edge => edge.target === infoCardNode.id)
+                    .map(edge => {
+                      const sourceNode = data.nodes.find(n => n.id === edge.source);
+                      return (
+                        <div key={edge.id} style={{ fontSize: '12px', margin: '2px 0' }}>
+                          • {sourceNode?.name} ({edge.type})
+                        </div>
+                      );
+                    })}
+                  {data.edges.filter(edge => edge.target === infoCardNode.id).length === 0 && (
+                    <div style={{ fontSize: '12px', color: '#ccc' }}>No dependencies</div>
+                  )}
+                </div>
+                
+                {/* Show Dependents */}
+                <div style={{ marginTop: '10px' }}>
+                  <h4 style={{ margin: '5px 0', fontSize: '14px' }}>Affects:</h4>
+                  {data.edges
+                    .filter(edge => edge.source === infoCardNode.id)
+                    .map(edge => {
+                      const targetNode = data.nodes.find(n => n.id === edge.target);
+                      return (
+                        <div key={edge.id} style={{ fontSize: '12px', margin: '2px 0' }}>
+                          • {targetNode?.name} ({edge.type})
+                        </div>
+                      );
+                    })}
+                  {data.edges.filter(edge => edge.source === infoCardNode.id).length === 0 && (
+                    <div style={{ fontSize: '12px', color: '#ccc' }}>No dependents</div>
+                  )}
+                </div>
+                
+                <button 
+                  style={{
+                    background: 'red',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 15px',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    marginTop: '15px',
+                    fontSize: '14px'
+                  }}
+                  onClick={handleCloseInfoCard}
+                >
+                  ✕ Clear Selection
+                </button>
+              </>
+            ) : (
+              <p style={{ margin: '10px 0', color: '#ccc' }}>
+                Click a node in the graph to see details
+              </p>
+            )}
+          </div>
+        </Html>
+
+        {/* Removed duplicate card - all info now in the main card above */}
       </Canvas>
       
       {/* Debug Card - Always Visible */}
       <div 
-        className="fixed top-4 right-4 bg-red-600 text-white p-4 rounded-lg border-4 border-yellow-300"
+        className="absolute top-4 right-4 bg-red-600 text-white p-4 rounded-lg border-4 border-yellow-300"
         style={{ 
-          zIndex: 99999, 
+          zIndex: 1000, 
           fontSize: '16px',
           fontWeight: 'bold',
-          boxShadow: '0 0 20px rgba(255, 0, 0, 0.8)'
+          boxShadow: '0 0 20px rgba(255, 0, 0, 0.8)',
+          pointerEvents: 'auto'
         }}
       >
         🚨 DEBUG CARD - Should be visible above 3D canvas!
@@ -755,23 +864,117 @@ export default function GraphViewer3D({
         Selected: {infoCardNode?.name || 'None'}
       </div>
 
-      {/* Info Card Overlay */}
-      {console.log('📋 Rendering infoCardNode:', infoCardNode?.name || 'none')}
-      {infoCardNode && (
+      {/* Test Card - Always Visible for debugging */}
+      {data.nodes.length > 0 && (
         <div 
-          className="node-info-card absolute" 
+          className="fixed top-20 right-20" 
           style={{ 
-            zIndex: 1000,
-            top: 20,
-            left: 20
+            zIndex: 10000,
+            background: 'blue',
+            color: 'white',
+            padding: '20px',
+            border: '3px solid yellow',
+            borderRadius: '10px',
+            fontSize: '16px',
+            maxWidth: '300px'
           }}
         >
-          <NodeInfoCard
-            node={infoCardNode}
-            data={data}
-            onClose={handleCloseInfoCard}
-            position={{ x: 0, y: 0 }}
-          />
+          <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
+            📋 NODE INFO CARD TEST
+          </h3>
+          <p style={{ margin: '10px 0' }}>
+            <strong>Name:</strong> {data.nodes[0].name}
+          </p>
+          <p style={{ margin: '10px 0' }}>
+            <strong>Type:</strong> {data.nodes[0].type}
+          </p>
+          <p style={{ margin: '10px 0' }}>
+            <strong>ID:</strong> {data.nodes[0].id}
+          </p>
+          {data.nodes[0].values && (
+            <p style={{ margin: '10px 0' }}>
+              <strong>Values:</strong> {data.nodes[0].values.length} items
+            </p>
+          )}
+          <button 
+            style={{
+              background: 'red',
+              color: 'white',
+              border: 'none',
+              padding: '5px 10px',
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+            onClick={() => console.log('Close clicked')}
+          >
+            ✕ Close
+          </button>
+        </div>
+      )}
+
+      {/* Info Card Overlay */}
+      {(() => {
+        console.log('📋 Rendering infoCardNode:', infoCardNode?.name || 'none');
+        return null;
+      })()}
+      {infoCardNode && (
+        <div 
+          className="fixed top-20 left-20" 
+          style={{ 
+            zIndex: 10000,
+            background: 'purple',
+            color: 'white',
+            padding: '20px',
+            border: '3px solid orange',
+            borderRadius: '10px',
+            fontSize: '16px',
+            maxWidth: '300px'
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
+            🎯 CLICKED NODE: {infoCardNode.name}
+          </h3>
+          <p style={{ margin: '10px 0' }}>
+            <strong>Type:</strong> {infoCardNode.type}
+          </p>
+          <p style={{ margin: '10px 0' }}>
+            <strong>ID:</strong> {infoCardNode.id}
+          </p>
+          {infoCardNode.values && (
+            <p style={{ margin: '10px 0' }}>
+              <strong>Values:</strong> {infoCardNode.values.length} items
+            </p>
+          )}
+          
+          {/* Show Dependencies */}
+          <div style={{ marginTop: '15px' }}>
+            <h4 style={{ margin: '5px 0', fontSize: '14px' }}>Dependencies:</h4>
+            {data.edges
+              .filter(edge => edge.target === infoCardNode.id)
+              .map(edge => {
+                const sourceNode = data.nodes.find(n => n.id === edge.source);
+                return (
+                  <div key={edge.id} style={{ fontSize: '12px', margin: '2px 0' }}>
+                    • {sourceNode?.name} ({edge.type})
+                  </div>
+                );
+              })}
+          </div>
+          
+          <button 
+            style={{
+              background: 'red',
+              color: 'white',
+              border: 'none',
+              padding: '5px 10px',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              marginTop: '10px'
+            }}
+            onClick={handleCloseInfoCard}
+          >
+            ✕ Close
+          </button>
         </div>
       )}
       

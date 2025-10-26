@@ -1,9 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-// CLI imports
-import { EvaluationEngine } from './engine/EvaluationEngine.js';
-import { ModelStorage } from './storage/ModelStorage.js';
 import { ModelitHTTPServer } from './mcp/http-server.js';
 function parseArgs(args) {
     const options = {};
@@ -123,11 +120,16 @@ async function main() {
     if (options.httpServer) {
         const port = options.port || 3000;
         const host = options.host || 'localhost';
-        const storageDir = options.storage || resolve(process.env.HOME || '~', '.modelit', 'models');
+        const databaseUrl = process.env.DATABASE_URL;
+        if (!databaseUrl) {
+            console.error('❌ DATABASE_URL environment variable is required');
+            console.error('Please set DATABASE_URL to your PostgreSQL connection string');
+            process.exit(1);
+        }
         const httpServer = new ModelitHTTPServer({
             port,
             host,
-            storageDirectory: storageDir
+            databaseUrl
         });
         console.log('Starting Modelit MCP HTTP Server...');
         await httpServer.start();
@@ -139,26 +141,21 @@ async function main() {
         });
         return;
     }
-    const storageDir = options.storage || resolve(process.env.HOME || '~', '.modelit', 'models');
-    const storage = new ModelStorage({
-        baseDirectory: storageDir,
-        createDirectories: true,
-    });
-    const engine = new EvaluationEngine();
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
+        console.error('❌ DATABASE_URL environment variable is required');
+        console.error('Please set DATABASE_URL to your PostgreSQL connection string');
+        process.exit(1);
+    }
+    const server = new ModelitMCPServer(databaseUrl);
+    await server.initialize();
     try {
         // Handle list command
         if (options.list) {
-            const models = await storage.listModels();
-            if (models.length === 0) {
-                console.log('No models found in storage');
-            }
-            else {
-                console.log('Available models:');
-                for (const modelName of models) {
-                    const info = await storage.getModelInfo(modelName);
-                    console.log(`  ${modelName} (${info.variableCount} variables, ${Math.round(info.size / 1024)}KB)`);
-                }
-            }
+            const result = await server['handleListModels']();
+            const models = result.content[0].text;
+            console.log('Available models:');
+            console.log(models);
             return;
         }
         // Handle import command

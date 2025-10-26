@@ -9,7 +9,7 @@ export class ModelitHTTPServer {
         this.config = config;
         this.app = express();
         this.sessionManager = new SessionManager();
-        this.mcpServer = new ModelitMCPServer(config.storageDirectory, config.databaseUrl);
+        this.mcpServer = new ModelitMCPServer(config.databaseUrl);
         this.setupMiddleware();
         this.setupRoutes();
         this.server = createServer(this.app);
@@ -601,7 +601,7 @@ export class ModelitHTTPServer {
             console.log('WebSocket connection established');
             const transport = new WebSocketTransport(ws);
             // Create a new MCP server instance for this WebSocket connection
-            const server = new ModelitMCPServer();
+            const server = new ModelitMCPServer(this.config.databaseUrl);
             server.connect(transport);
         });
     }
@@ -609,7 +609,7 @@ export class ModelitHTTPServer {
         // API routes for graph data
         this.app.get('/api/models', async (req, res) => {
             try {
-                const models = await this.mcpServer['getStorage']().listModels();
+                const models = await this.mcpServer['dbStorage'].listModels();
                 res.json({ models });
             }
             catch (error) {
@@ -619,30 +619,8 @@ export class ModelitHTTPServer {
         this.app.get('/api/models/:modelName/graph', async (req, res) => {
             try {
                 const { modelName } = req.params;
-                // Use database storage if available, otherwise fall back to file storage
-                if (this.mcpServer['useDatabase']) {
-                    const graphData = await this.mcpServer['dbStorage'].getGraphData(modelName);
-                    res.json(graphData);
-                }
-                else {
-                    // Load model and convert to graph format
-                    const model = await this.mcpServer['getStorage']().loadModel(modelName);
-                    const nodes = model.listVariables().map(v => ({
-                        id: v.name,
-                        name: v.name,
-                        type: v.type,
-                        values: v.values,
-                        metadata: v.metadata
-                    }));
-                    const edges = model.listEdges().map(e => ({
-                        id: `${e.source}-${e.target}`,
-                        source: e.source,
-                        target: e.target,
-                        type: e.type,
-                        metadata: e.metadata
-                    }));
-                    res.json({ nodes, edges });
-                }
+                const graphData = await this.mcpServer['dbStorage'].getGraphData(modelName);
+                res.json(graphData);
             }
             catch (error) {
                 res.status(404).json({ error: error instanceof Error ? error.message : String(error) });
@@ -652,13 +630,8 @@ export class ModelitHTTPServer {
             try {
                 const { modelName } = req.params;
                 const { nodePositions } = req.body;
-                if (this.mcpServer['useDatabase']) {
-                    await this.mcpServer['dbStorage'].saveGraphLayout(modelName, nodePositions);
-                    res.json({ success: true });
-                }
-                else {
-                    res.status(501).json({ error: 'Layout saving requires database storage' });
-                }
+                await this.mcpServer['dbStorage'].saveGraphLayout(modelName, nodePositions);
+                res.json({ success: true });
             }
             catch (error) {
                 res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
@@ -667,15 +640,9 @@ export class ModelitHTTPServer {
         // Advanced queries
         this.app.post('/api/query', async (req, res) => {
             try {
-                if (this.mcpServer['useDatabase']) {
-                    const marketplace = this.mcpServer['marketplace'];
-                    const results = await marketplace.searchModels(req.body);
-                    res.json(results);
-                }
-                else {
-                    const models = await this.mcpServer['getStorage']().listModels();
-                    res.json({ models, total: models.length, hasMore: false });
-                }
+                const marketplace = this.mcpServer['marketplace'];
+                const results = await marketplace.searchModels(req.body);
+                res.json(results);
             }
             catch (error) {
                 res.status(500).json({ error: error instanceof Error ? error.message : String(error) });

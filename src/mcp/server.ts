@@ -11,7 +11,6 @@ import { Variable } from '../models/Variable.js';
 import { Edge, EdgeType } from '../models/Edge.js';
 import { ModelGraph } from '../models/ModelGraph.js';
 import { EvaluationEngine } from '../engine/EvaluationEngine.js';
-import { ModelStorage } from '../storage/ModelStorage.js';
 import { DatabaseStorage, DatabaseMarketplaceAPI } from '../storage/DatabaseStorage.js';
 import { DependencyGraph } from '../graph/DependencyGraph.js';
 import { MarketplaceAPI } from '../marketplace/MarketplaceAPI.js';
@@ -20,14 +19,12 @@ export class ModelitMCPServer {
   private server: Server;
   private currentModel: Model | null = null;
   private engine: EvaluationEngine;
-  private storage: ModelStorage;
   private dbStorage: DatabaseStorage;
   private graph: DependencyGraph;
   private marketplace: MarketplaceAPI;
   private currentModelGraph: ModelGraph | null = null;
-  private useDatabase: boolean;
 
-  constructor(storageDirectory: string = './models', databaseUrl?: string) {
+  constructor(databaseUrl: string) {
     this.server = new Server(
       {
         name: 'modelit-server',
@@ -42,43 +39,27 @@ export class ModelitMCPServer {
 
     this.engine = new EvaluationEngine();
     
-    // Initialize both storage systems
-    this.storage = new ModelStorage({
-      baseDirectory: storageDirectory,
-      createDirectories: true,
-    });
-    
     this.dbStorage = new DatabaseStorage({ databaseUrl });
-    this.useDatabase = !!databaseUrl || !!process.env.DATABASE_URL;
     
     this.graph = new DependencyGraph();
-    
-    if (this.useDatabase) {
-      this.marketplace = new DatabaseMarketplaceAPI(this.dbStorage);
-    } else {
-      this.marketplace = new MarketplaceAPI();
-    }
+    this.marketplace = new DatabaseMarketplaceAPI(this.dbStorage);
 
     this.setupHandlers();
   }
 
-  // Initialize database connection if using database storage
+  // Initialize database connection
   async initialize(): Promise<void> {
-    if (this.useDatabase) {
-      await this.dbStorage.initialize();
-    }
+    await this.dbStorage.initialize();
   }
 
-  // Get the appropriate storage based on configuration
-  private getStorage(): ModelStorage | DatabaseStorage {
-    return this.useDatabase ? this.dbStorage : this.storage;
+  // Get database storage
+  private getStorage(): DatabaseStorage {
+    return this.dbStorage;
   }
 
   // Cleanup method
   async cleanup(): Promise<void> {
-    if (this.useDatabase) {
-      await this.dbStorage.disconnect();
-    }
+    await this.dbStorage.disconnect();
   }
 
   private setupHandlers(): void {
@@ -1023,47 +1004,15 @@ ${cycles.length > 0 ? `Cycles found:\n${cycles.map(cycle => `- ${cycle.join(' â†
       throw new Error('No model specified and no current model loaded');
     }
 
-    if (this.useDatabase) {
-      const graphData = await this.dbStorage.getGraphData(modelName);
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(graphData, null, 2),
-          },
-        ],
-      };
-    } else {
-      // Fallback to current model for file storage
-      if (!this.currentModel) {
-        throw new Error('No current model loaded');
-      }
-      
-      const nodes = this.currentModel.listVariables().map(v => ({
-        id: v.name,
-        name: v.name,
-        type: v.type,
-        values: v.values,
-        metadata: v.metadata
-      }));
-
-      const edges = this.currentModel.listEdges().map(e => ({
-        id: `${e.source}-${e.target}`,
-        source: e.source,
-        target: e.target,
-        type: e.type,
-        metadata: e.metadata
-      }));
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({ nodes, edges }, null, 2),
-          },
-        ],
-      };
-    }
+    const graphData = await this.dbStorage.getGraphData(modelName);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(graphData, null, 2),
+        },
+      ],
+    };
   }
 
   private async handleSaveGraphLayout(args: any) {
@@ -1074,43 +1023,18 @@ ${cycles.length > 0 ? `Cycles found:\n${cycles.map(cycle => `- ${cycle.join(' â†
       throw new Error('No model specified and no current model loaded');
     }
 
-    if (this.useDatabase) {
-      await this.dbStorage.saveGraphLayout(targetModelName, nodePositions);
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Successfully saved 3D layout for model '${targetModelName}'`,
-          },
-        ],
-      };
-    } else {
-      // For file storage, we could save to a separate layout file
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Graph layout saving not supported with file storage. Use database storage for 3D layout persistence.`,
-          },
-        ],
-      };
-    }
+    await this.dbStorage.saveGraphLayout(targetModelName, nodePositions);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Successfully saved 3D layout for model '${targetModelName}'`,
+        },
+      ],
+    };
   }
 
   private async handleQueryModels(args: any) {
-    if (!this.useDatabase) {
-      // Fallback to simple listing for file storage
-      const models = await this.storage.listModels();
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({ models, total: models.length, hasMore: false }, null, 2),
-          },
-        ],
-      };
-    }
-
     // Use database marketplace for advanced queries
     const searchResult = await (this.marketplace as DatabaseMarketplaceAPI).searchModels(args);
     
@@ -1144,17 +1068,6 @@ ${cycles.length > 0 ? `Cycles found:\n${cycles.map(cycle => `- ${cycle.join(' â†
     
     if (!targetModelName) {
       throw new Error('No model specified and no current model loaded');
-    }
-
-    if (!this.useDatabase) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Model versioning not supported with file storage. Use database storage for version control.`,
-          },
-        ],
-      };
     }
 
     const version = await this.dbStorage.createVersion(targetModelName, changelog);
