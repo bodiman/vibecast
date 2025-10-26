@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Framework Viewer - VibeCast</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+        
+        #header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #2a2a2a;
+            border-bottom: 2px solid #ff6b35;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            gap: 20px;
+        }
+        
+        .tribe-home {
+            text-decoration: none;
+            color: #ff6b35;
+            font-size: 20px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-right: 20px;
+        }
+        
+        .tribe-home:hover {
+            color: #ff8555;
+            transform: scale(1.05);
+        }
+        
+        #header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+        
+        #header .type-badge {
+            padding: 4px 12px;
+            background: #ff6b35;
+            border-radius: 12px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: white;
+        }
+        
+        #header .stats {
+            margin-left: auto;
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            color: #888;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 300px;
+            bottom: 0;
+            background: #1a1a1a;
+        }
+        
+        #canvas {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+        
+        #canvas:active {
+            cursor: grabbing;
+        }
+        
+        #sidebar {
+            position: fixed;
+            top: 60px;
+            right: 0;
+            width: 300px;
+            bottom: 0;
+            background: #2a2a2a;
+            border-left: 2px solid #ff6b35;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        #sidebar h2 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+        
+        #sidebar .node-info {
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        #sidebar .node-info h3 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #ff6b35;
+        }
+        
+        #sidebar .node-info .type {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #ff6b35;
+            border-radius: 4px;
+            font-size: 11px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            color: white;
+        }
+        
+        #sidebar .node-info .content {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #aaa;
+            margin-bottom: 10px;
+        }
+        
+        #sidebar .meta {
+            font-size: 11px;
+            color: #666;
+            margin-top: 8px;
+        }
+        
+        #sidebar .connections {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #333;
+        }
+        
+        #sidebar .connection {
+            font-size: 12px;
+            padding: 5px 0;
+            color: #888;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 500px;
+            text-align: center;
+        }
+        
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+        }
+        
+        .legend h3 {
+            font-size: 13px;
+            margin-bottom: 10px;
+            color: #aaa;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <a href="/dashboard" class="tribe-home">🏠 Tribe</a>
+        <h1 id="framework-name">Loading...</h1>
+        <div class="type-badge" id="framework-type"></div>
+        <div class="stats">
+            <span id="node-count">0 nodes</span>
+            <span id="edge-count">0 edges</span>
+        </div>
+    </div>
+    
+    <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+    
+    <div id="sidebar">
+        <h2>Details</h2>
+        <div id="sidebar-content">
+            <p style="color: #666; font-size: 13px;">Click a node to see details</p>
+        </div>
+        
+        <div class="legend">
+            <h3>Node Types</h3>
+            <div id="legend-content"></div>
+        </div>
+    </div>
+    
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <div>Loading framework...</div>
+    </div>
+
+    <script>
+        // Parse framework name from URL
+        const pathParts = window.location.pathname.split('/').filter(p => p && p !== 'framework');
+        const frameworkName = decodeURIComponent(pathParts.join('/')) || 'unknown';
+        
+        let framework = null;
+        let selectedNode = null;
+        
+        // Canvas state
+        let canvas, ctx;
+        let camera = { x: 0, y: 0, zoom: 1 };
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        
+        // Node colors by type (dark theme with orange accents)
+        const nodeColors = {
+            // Mathematical
+            'parameter': '#ff6b35',
+            'series': '#ff8555',
+            'scalar': '#ffa075',
+            // Knowledge
+            'concept': '#ff6b35',
+            'pattern': '#ff8555',
+            'gotcha': '#ef4444',
+            'tool': '#ffa075',
+            'decision': '#ff6b35',
+            'example': '#ff8555',
+            'insight': '#ffa075',
+            // Workflow
+            'stage': '#ff6b35',
+            'task': '#ff8555',
+            // Default
+            'default': '#ff6b35'
+        };
+        
+        async function loadFramework() {
+            try {
+                const response = await fetch(`/api/frameworks/${encodeURIComponent(frameworkName)}/graph`);
+                if (!response.ok) throw new Error(`Failed to load: ${response.statusText}`);
+                
+                framework = await response.json();
+                
+                document.getElementById('framework-name').textContent = framework.name;
+                document.getElementById('framework-type').textContent = framework.type;
+                document.getElementById('node-count').textContent = `${framework.nodeCount} nodes`;
+                document.getElementById('edge-count').textContent = `${framework.edgeCount} edges`;
+                document.getElementById('loading').style.display = 'none';
+                
+                initCanvas();
+                createLegend();
+                
+            } catch (error) {
+                document.getElementById('loading').innerHTML = `
+                    <div class="error">
+                        <h2>Error Loading Framework</h2>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function applyForceDirectedLayout() {
+            const iterations = 80;
+            const repulsionStrength = 1; // Stronger repulsion for more space
+            const attractionStrength = 20; // Weaker attraction for looser layout
+            const damping = 0.7;
+            const minDistance = 200; // Larger minimum distance between nodes
+            
+            for (let iter = 0; iter < iterations; iter++) {
+                // Apply repulsion between all nodes
+                for (let i = 0; i < framework.nodes.length; i++) {
+                    const nodeA = framework.nodes[i];
+                    
+                    for (let j = i + 1; j < framework.nodes.length; j++) {
+                        const nodeB = framework.nodes[j];
+                        
+                        const dx = nodeB.position.x - nodeA.position.x;
+                        const dy = nodeB.position.y - nodeA.position.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                        
+                        if (distance < minDistance * 3) {
+                            const force = repulsionStrength / (distance * distance);
+                            const fx = (dx / distance) * force;
+                            const fy = (dy / distance) * force;
+                            
+                            nodeA.velocity.x -= fx;
+                            nodeA.velocity.y -= fy;
+                            nodeB.velocity.x += fx;
+                            nodeB.velocity.y += fy;
+                        }
+                    }
+                }
+                
+                // Apply attraction along edges
+                framework.edges.forEach(edge => {
+                    const source = framework.nodes.find(n => n.id === edge.from);
+                    const target = framework.nodes.find(n => n.id === edge.to);
+                    
+                    if (source && target) {
+                        const dx = target.position.x - source.position.x;
+                        const dy = target.position.y - source.position.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                        
+                        const force = distance * attractionStrength;
+                        const fx = (dx / distance) * force;
+                        const fy = (dy / distance) * force;
+                        
+                        source.velocity.x += fx;
+                        source.velocity.y += fy;
+                        target.velocity.x -= fx;
+                        target.velocity.y -= fy;
+                    }
+                });
+                
+                // Update positions with damping
+                framework.nodes.forEach(node => {
+                    node.position.x += node.velocity.x;
+                    node.position.y += node.velocity.y;
+                    node.velocity.x *= damping;
+                    node.velocity.y *= damping;
+                });
+            }
+            
+            // Reset velocities but keep slight random motion for dynamics
+            framework.nodes.forEach(node => {
+                node.velocity = { 
+                    x: (Math.random() - 0.5) * 0.3, 
+                    y: (Math.random() - 0.5) * 0.3 
+                };
+            });
+        }
+        
+        function createLegend() {
+            const types = [...new Set(framework.nodes.map(n => n.type))];
+            const legendContent = document.getElementById('legend-content');
+            
+            legendContent.innerHTML = types.map(type => `
+                <div class="legend-item">
+                    <div class="legend-color" style="background: ${nodeColors[type] || nodeColors.default}"></div>
+                    <span>${type}</span>
+                </div>
+            `).join('');
+        }
+        
+        function initCanvas() {
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Initialize node positions with force-directed layout
+            framework.nodes.forEach((node, i) => {
+                if (!node.position || (!node.position.x && !node.position.y)) {
+                    // Start with a wider spiral to avoid initial overlap
+                    const angle = (i / framework.nodes.length) * Math.PI * 2;
+                    const spiralRadius = 150 + (i * 100); // Increasing radius for spiral
+                    node.position = {
+                        x: Math.cos(angle) * spiralRadius + (Math.random() - 0.5) * 50,
+                        y: Math.sin(angle) * spiralRadius + (Math.random() - 0.5) * 50,
+                        z: 0
+                    };
+                }
+                // Initialize velocity for physics simulation
+                node.velocity = { x: 0, y: 0 };
+            });
+            
+            // Apply force-directed layout
+            applyForceDirectedLayout();
+            
+            // Center camera
+            centerCamera();
+            
+            // Event listeners
+            canvas.addEventListener('mousedown', onMouseDown);
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mouseup', onMouseUp);
+            canvas.addEventListener('wheel', onWheel, { passive: false });
+            canvas.addEventListener('click', onClick);
+            
+            // Start rendering
+            animate();
+        }
+        
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+        
+        function centerCamera() {
+            if (!framework.nodes.length) return;
+            
+            const bounds = {
+                minX: Infinity, maxX: -Infinity,
+                minY: Infinity, maxY: -Infinity
+            };
+            
+            framework.nodes.forEach(node => {
+                bounds.minX = Math.min(bounds.minX, node.position.x);
+                bounds.maxX = Math.max(bounds.maxX, node.position.x);
+                bounds.minY = Math.min(bounds.minY, node.position.y);
+                bounds.maxY = Math.max(bounds.maxY, node.position.y);
+            });
+            
+            camera.x = -(bounds.minX + bounds.maxX) / 2;
+            camera.y = -(bounds.minY + bounds.maxY) / 2;
+            
+            const width = bounds.maxX - bounds.minX;
+            const height = bounds.maxY - bounds.minY;
+            const canvasWidth = canvas.offsetWidth;
+            const canvasHeight = canvas.offsetHeight;
+            
+            camera.zoom = Math.min(canvasWidth / (width + 200), canvasHeight / (height + 200), 2);
+        }
+        
+        function worldToScreen(x, y) {
+            return {
+                x: (x + camera.x) * camera.zoom + canvas.offsetWidth / 2,
+                y: (y + camera.y) * camera.zoom + canvas.offsetHeight / 2
+            };
+        }
+        
+        function screenToWorld(x, y) {
+            return {
+                x: (x - canvas.offsetWidth / 2) / camera.zoom - camera.x,
+                y: (y - canvas.offsetHeight / 2) / camera.zoom - camera.y
+            };
+        }
+        
+        function onMouseDown(e) {
+            isDragging = true;
+            dragStart = { x: e.clientX, y: e.clientY };
+        }
+        
+        function onMouseMove(e) {
+            if (isDragging) {
+                const dx = e.clientX - dragStart.x;
+                const dy = e.clientY - dragStart.y;
+                camera.x += dx / camera.zoom;
+                camera.y += dy / camera.zoom;
+                dragStart = { x: e.clientX, y: e.clientY };
+            }
+        }
+        
+        function onMouseUp() {
+            isDragging = false;
+        }
+        
+        function onWheel(e) {
+            e.preventDefault();
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            camera.zoom = Math.max(0.05, Math.min(5, camera.zoom * zoomFactor));
+        }
+        
+        function onClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const world = screenToWorld(x, y);
+            
+            // Find clicked node
+            const clickedNode = framework.nodes.find(node => {
+                const dx = node.position.x - world.x;
+                const dy = node.position.y - world.y;
+                return Math.sqrt(dx * dx + dy * dy) < 25 / camera.zoom;
+            });
+            
+            if (clickedNode) {
+                selectedNode = clickedNode;
+                showNodeDetails(clickedNode);
+            } else {
+                selectedNode = null;
+                document.getElementById('sidebar-content').innerHTML = 
+                    '<p style="color: #666; font-size: 13px;">Click a node to see details</p>';
+            }
+        }
+        
+        function showNodeDetails(node) {
+            const inbound = framework.edges.filter(e => e.target === node.id);
+            const outbound = framework.edges.filter(e => e.source === node.id);
+            
+            let html = `
+                <div class="node-info">
+                    <h3>${node.name}</h3>
+                    <div class="type">${node.type}</div>
+            `;
+            
+            if (node.metadata) {
+                if (node.metadata.summary) {
+                    html += `<div class="content"><em>${node.metadata.summary}</em></div>`;
+                }
+                if (node.metadata.content) {
+                    html += `<div class="content">${node.metadata.content.substring(0, 200)}${node.metadata.content.length > 200 ? '...' : ''}</div>`;
+                }
+                if (node.metadata.formula) {
+                    html += `<div class="content"><strong>Formula:</strong> ${node.metadata.formula}</div>`;
+                }
+                if (node.metadata.values) {
+                    const values = Array.isArray(node.metadata.values) ? node.metadata.values.slice(0, 5) : [node.metadata.values];
+                    html += `<div class="meta">Values: ${values.join(', ')}${node.metadata.values.length > 5 ? '...' : ''}</div>`;
+                }
+                if (node.metadata.importance) {
+                    html += `<div class="meta">Importance: ${Math.round(node.metadata.importance * 100)}%</div>`;
+                }
+            }
+            
+            html += '</div>';
+            
+            if (inbound.length > 0 || outbound.length > 0) {
+                html += '<div class="connections">';
+                if (inbound.length > 0) {
+                    html += `<h3 style="font-size: 13px; margin-bottom: 8px; color: #aaa;">Incoming (${inbound.length})</h3>`;
+                    inbound.forEach(edge => {
+                        const source = framework.nodes.find(n => n.id === edge.source);
+                        html += `<div class="connection">← ${source?.name || edge.source} (${edge.type})</div>`;
+                    });
+                }
+                if (outbound.length > 0) {
+                    html += `<h3 style="font-size: 13px; margin: 15px 0 8px; color: #aaa;">Outgoing (${outbound.length})</h3>`;
+                    outbound.forEach(edge => {
+                        const target = framework.nodes.find(n => n.id === edge.target);
+                        html += `<div class="connection">→ ${target?.name || edge.target} (${edge.type})</div>`;
+                    });
+                }
+                html += '</div>';
+            }
+            
+            document.getElementById('sidebar-content').innerHTML = html;
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw edges
+            framework.edges.forEach(edge => {
+                const source = framework.nodes.find(n => n.id === edge.source);
+                const target = framework.nodes.find(n => n.id === edge.target);
+                if (!source || !target) return;
+                
+                const from = worldToScreen(source.position.x, source.position.y);
+                const to = worldToScreen(target.position.x, target.position.y);
+                
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.strokeStyle = selectedNode && (edge.source === selectedNode.id || edge.target === selectedNode.id) 
+                    ? '#8b5cf6' : '#333';
+                ctx.lineWidth = selectedNode && (edge.source === selectedNode.id || edge.target === selectedNode.id) ? 2 : 1;
+                ctx.stroke();
+                
+                // Draw arrow
+                const angle = Math.atan2(to.y - from.y, to.x - from.x);
+                const arrowSize = 8;
+                ctx.beginPath();
+                ctx.moveTo(to.x, to.y);
+                ctx.lineTo(
+                    to.x - arrowSize * Math.cos(angle - Math.PI / 6),
+                    to.y - arrowSize * Math.sin(angle - Math.PI / 6)
+                );
+                ctx.lineTo(
+                    to.x - arrowSize * Math.cos(angle + Math.PI / 6),
+                    to.y - arrowSize * Math.sin(angle + Math.PI / 6)
+                );
+                ctx.closePath();
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.fill();
+            });
+            
+            // Draw nodes
+            framework.nodes.forEach(node => {
+                const screen = worldToScreen(node.position.x, node.position.y);
+                const radius = 20; // Increased from 12 to 20
+                const isSelected = selectedNode && selectedNode.id === node.id;
+                
+                // Node circle with glow effect
+                ctx.beginPath();
+                ctx.arc(screen.x, screen.y, radius, 0, Math.PI * 2);
+                
+                // Add glow for selected node
+                if (isSelected) {
+                    ctx.shadowColor = '#ff6b35';
+                    ctx.shadowBlur = 20;
+                }
+                
+                ctx.fillStyle = nodeColors[node.type] || nodeColors.default;
+                ctx.fill();
+                
+                // Reset shadow
+                ctx.shadowBlur = 0;
+                
+                // Selection ring
+                if (isSelected) {
+                    ctx.strokeStyle = '#ff6b35';
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                }
+                
+                // Label with better styling
+                ctx.fillStyle = '#e0e0e0';
+                ctx.font = 'bold 14px -apple-system, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(node.name.substring(0, 25), screen.x, screen.y + radius + 20);
+            });
+        }
+        
+        function animate() {
+            // Apply gentle continuous physics
+            const repulsionStrength = 5000;
+            const attractionStrength = 0.002;
+            const damping = 0.95;
+            const minDistance = 200;
+            
+            // Apply gentle repulsion between all nodes
+            for (let i = 0; i < framework.nodes.length; i++) {
+                const nodeA = framework.nodes[i];
+                
+                for (let j = i + 1; j < framework.nodes.length; j++) {
+                    const nodeB = framework.nodes[j];
+                    
+                    const dx = nodeB.position.x - nodeA.position.x;
+                    const dy = nodeB.position.y - nodeA.position.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                    
+                    if (distance < minDistance * 2) {
+                        const force = repulsionStrength / (distance * distance);
+                        const fx = (dx / distance) * force;
+                        const fy = (dy / distance) * force;
+                        
+                        nodeA.velocity.x -= fx * 0.01;
+                        nodeA.velocity.y -= fy * 0.01;
+                        nodeB.velocity.x += fx * 0.01;
+                        nodeB.velocity.y += fy * 0.01;
+                    }
+                }
+            }
+            
+            // Apply gentle attraction along edges
+            framework.edges.forEach(edge => {
+                const source = framework.nodes.find(n => n.id === edge.from);
+                const target = framework.nodes.find(n => n.id === edge.to);
+                
+                if (source && target) {
+                    const dx = target.position.x - source.position.x;
+                    const dy = target.position.y - source.position.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                    
+                    const force = distance * attractionStrength;
+                    const fx = (dx / distance) * force;
+                    const fy = (dy / distance) * force;
+                    
+                    source.velocity.x += fx * 0.01;
+                    source.velocity.y += fy * 0.01;
+                    target.velocity.x -= fx * 0.01;
+                    target.velocity.y -= fy * 0.01;
+                }
+            });
+            
+            // Update positions with damping
+            framework.nodes.forEach(node => {
+                node.position.x += node.velocity.x;
+                node.position.y += node.velocity.y;
+                node.velocity.x *= damping;
+                node.velocity.y *= damping;
+                
+                // Add slight random wobble for organic movement
+                node.velocity.x += (Math.random() - 0.5) * 0.05;
+                node.velocity.y += (Math.random() - 0.5) * 0.05;
+            });
+            
+            draw();
+            requestAnimationFrame(animate);
+        }
+        
+        // Load on page load
+        loadFramework();
+    </script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+// Unified Framework Schema - Replaces Model and TribalKnowledge
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Framework - Unified graph structure for all types of knowledge
+model Framework {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  type        String   @default("general") // 'knowledge', 'mathematical', 'workflow', 'general'
+  
+  // Graph data
+  nodes       Json     // Array of nodes with {id, name, type, metadata, position}
+  edges       Json     // Array of edges with {id, source, target, type, metadata}
+  
+  // Metadata
+  metadata    Json?    // Additional metadata (tags, category, etc.)
+  nodeCount   Int      @default(0)
+  edgeCount   Int      @default(0)
+  
+  // Versioning
+  version     String   @default("1.0.0")
+  
+  // Ownership and visibility
+  owner       String?
+  visibility  String   @default("private") // 'private' | 'team' | 'public'
+  
+  // Marketplace
+  published   Boolean  @default(false)
+  publishedAt DateTime?
+  stars       Int      @default(0)
+  forks       Int      @default(0)
+  downloads   Int      @default(0)
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  activities  FrameworkActivity[]
+  versions    FrameworkVersion[]
+  
+  @@index([type])
+  @@index([owner])
+  @@index([visibility])
+  @@index([published])
+  @@map("frameworks")
+}
+
+// Activity log for framework evolution
+model FrameworkActivity {
+  id          String   @id @default(cuid())
+  
+  framework   Framework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  frameworkId String
+  
+  // Activity details
+  type        String   // 'created', 'node_added', 'edge_added', 'updated', 'published', etc.
+  actor       String?
+  description String?
+  metadata    Json?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([frameworkId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("framework_activities")
+}
+
+// Framework version control
+model FrameworkVersion {
+  id        String   @id @default(cuid())
+  version   String
+  snapshot  Json     // Complete framework state at this version
+  changelog String?
+  createdAt DateTime @default(now())
+  
+  framework   Framework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  frameworkId String
+  
+  @@unique([frameworkId, version])
+  @@map("framework_versions")
+}
+
+// Session for collaborative editing
+model Session {
+  id          String   @id @default(cuid())
+  userId      String?
+  frameworkId String?
+  data        Json?
+  lastSeen    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  
+  @@index([frameworkId])
+  @@index([userId])
+  @@map("sessions")
+}
+
+// Agent state - tracks which frameworks an agent is using
+model AgentState {
+  id          String   @id @default(cuid())
+  
+  // Agent identification
+  agentId     String   @unique
+  agentName   String?
+  
+  // Current frameworks in context
+  frameworks  Json     // Array of framework IDs
+  
+  // Learning history
+  interactions Int      @default(0)
+  lastActive   DateTime @default(now())
+  
+  // Performance metrics
+  metrics      Json?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([lastActive])
+  @@map("agent_states")
+}
+
+// Context cache for quick access
+model ContextCache {
+  id          String   @id @default(cuid())
+  
+  // Cache key
+  frameworkId String
+  contextType String   // 'full', 'summary', 'nodes', 'edges'
+  
+  // Cached content
+  content     String   @db.Text
+  tokens      Int?
+  
+  // Cache metadata
+  version     String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  
+  @@unique([frameworkId, contextType])
+  @@index([expiresAt])
+  @@map("context_cache")
+}
