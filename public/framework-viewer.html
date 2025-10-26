@@ -248,6 +248,11 @@
             <h3>Node Types</h3>
             <div id="legend-content"></div>
         </div>
+        
+        <div class="legend" style="margin-top: 15px;">
+            <h3>Edge Types</h3>
+            <div id="edge-legend-content"></div>
+        </div>
     </div>
     
     <div id="loading" class="loading">
@@ -262,6 +267,8 @@
         
         let framework = null;
         let selectedNode = null;
+        let selectedEdge = null;
+        let hoveredEdge = null;
         
         // Canvas state
         let canvas, ctx;
@@ -297,6 +304,38 @@
                 
                 framework = await response.json();
                 
+                // Debug: Log the data structure to verify transformation
+                console.log('🔍 Framework loaded:', {
+                    name: framework.name,
+                    nodeCount: framework.nodes.length,
+                    edgeCount: framework.edges.length,
+                    sampleNode: framework.nodes[0],
+                    sampleEdge: framework.edges[0],
+                    nodeIds: framework.nodes.map(n => n.id),
+                    edgeReferences: framework.edges.map(e => ({ id: e.id, source: e.source, target: e.target })),
+                    nodePositions: framework.nodes.map(n => ({ id: n.id, name: n.name, position: n.position }))
+                });
+                
+                // Specific edge validation
+                if (framework.edges.length === 0) {
+                    console.warn('⚠️ No edges found in framework - this may explain why no edges are rendering');
+                } else {
+                    console.log(`🔗 Found ${framework.edges.length} edges to render`);
+                    
+                    // Check if all edges have valid source/target references
+                    const invalidEdges = framework.edges.filter(edge => {
+                        const sourceExists = framework.nodes.some(n => n.id === edge.source);
+                        const targetExists = framework.nodes.some(n => n.id === edge.target);
+                        return !sourceExists || !targetExists;
+                    });
+                    
+                    if (invalidEdges.length > 0) {
+                        console.error('❌ Found edges with invalid node references:', invalidEdges);
+                    } else {
+                        console.log('✅ All edges have valid node references');
+                    }
+                }
+                
                 document.getElementById('framework-name').textContent = framework.name;
                 document.getElementById('framework-type').textContent = framework.type;
                 document.getElementById('node-count').textContent = `${framework.nodeCount} nodes`;
@@ -318,10 +357,10 @@
         
         function applyForceDirectedLayout() {
             const iterations = 80;
-            const repulsionStrength = 1; // Stronger repulsion for more space
-            const attractionStrength = 20; // Weaker attraction for looser layout
-            const damping = 0.7;
-            const minDistance = 200; // Larger minimum distance between nodes
+            const repulsionStrength = 2000; // Much stronger repulsion for better spacing
+            const attractionStrength = 0.01; // Weaker attraction for looser layout
+            const damping = 0.8;
+            const minDistance = 300; // Larger minimum distance between nodes
             
             for (let iter = 0; iter < iterations; iter++) {
                 // Apply repulsion between all nodes
@@ -335,10 +374,10 @@
                         const dy = nodeB.position.y - nodeA.position.y;
                         const distance = Math.sqrt(dx * dx + dy * dy) || 1;
                         
-                        if (distance < minDistance * 3) {
-                            const force = repulsionStrength / (distance * distance);
-                            const fx = (dx / distance) * force;
-                            const fy = (dy / distance) * force;
+                        if (distance < minDistance * 2) {
+                            const force = repulsionStrength / (distance * distance + 1);
+                            const fx = (dx / distance) * force * 0.01;
+                            const fy = (dy / distance) * force * 0.01;
                             
                             nodeA.velocity.x -= fx;
                             nodeA.velocity.y -= fy;
@@ -350,8 +389,8 @@
                 
                 // Apply attraction along edges
                 framework.edges.forEach(edge => {
-                    const source = framework.nodes.find(n => n.id === edge.from);
-                    const target = framework.nodes.find(n => n.id === edge.to);
+                    const source = framework.nodes.find(n => n.id === edge.source);
+                    const target = framework.nodes.find(n => n.id === edge.target);
                     
                     if (source && target) {
                         const dx = target.position.x - source.position.x;
@@ -397,6 +436,21 @@
                     <span>${type}</span>
                 </div>
             `).join('');
+            
+            // Create edge legend
+            const edgeTypes = [...new Set(framework.edges.map(e => e.type).filter(t => t))];
+            const edgeLegendContent = document.getElementById('edge-legend-content');
+            
+            if (edgeTypes.length > 0) {
+                edgeLegendContent.innerHTML = edgeTypes.map(type => `
+                    <div class="legend-item">
+                        <div style="width: 20px; height: 2px; background: #666; margin: 7px 0;"></div>
+                        <span>${type}</span>
+                    </div>
+                `).join('');
+            } else {
+                edgeLegendContent.innerHTML = '<div style="color: #666; font-size: 11px;">No edge types found</div>';
+            }
         }
         
         function initCanvas() {
@@ -407,20 +461,29 @@
             window.addEventListener('resize', resizeCanvas);
             
             // Initialize node positions with force-directed layout
+            let nodesNeedingPosition = 0;
             framework.nodes.forEach((node, i) => {
-                if (!node.position || (!node.position.x && !node.position.y)) {
+                // Only create new positions for nodes that truly don't have position data
+                // Check for null, undefined, or completely missing position object
+                if (!node.position || (node.position.x === undefined && node.position.y === undefined)) {
+                    nodesNeedingPosition++;
                     // Start with a wider spiral to avoid initial overlap
                     const angle = (i / framework.nodes.length) * Math.PI * 2;
-                    const spiralRadius = 150 + (i * 100); // Increasing radius for spiral
+                    const spiralRadius = 150 + (i * 80); // Tighter spiral for better initial layout
                     node.position = {
-                        x: Math.cos(angle) * spiralRadius + (Math.random() - 0.5) * 50,
-                        y: Math.sin(angle) * spiralRadius + (Math.random() - 0.5) * 50,
+                        x: Math.cos(angle) * spiralRadius + (Math.random() - 0.5) * 30,
+                        y: Math.sin(angle) * spiralRadius + (Math.random() - 0.5) * 30,
                         z: 0
                     };
+                    console.log(`🔄 Creating spiral position for node ${node.name}: (${Math.round(node.position.x)}, ${Math.round(node.position.y)})`);
+                } else {
+                    console.log(`✅ Using stored position for node ${node.name}: (${Math.round(node.position.x)}, ${Math.round(node.position.y)})`);
                 }
                 // Initialize velocity for physics simulation
                 node.velocity = { x: 0, y: 0 };
             });
+            
+            console.log(`📍 Position initialization: ${nodesNeedingPosition} nodes needed new positions, ${framework.nodes.length - nodesNeedingPosition} used stored positions`);
             
             // Apply force-directed layout
             applyForceDirectedLayout();
@@ -434,6 +497,7 @@
             canvas.addEventListener('mouseup', onMouseUp);
             canvas.addEventListener('wheel', onWheel, { passive: false });
             canvas.addEventListener('click', onClick);
+            canvas.addEventListener('mousemove', onMouseMoveHover);
             
             // Start rendering
             animate();
@@ -500,6 +564,32 @@
             }
         }
         
+        function onMouseMoveHover(e) {
+            if (isDragging) {
+                onMouseMove(e);
+                return;
+            }
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const world = screenToWorld(x, y);
+            
+            // Check for hovered edge
+            const newHoveredEdge = framework.edges.find(edge => {
+                const source = framework.nodes.find(n => n.id === edge.source);
+                const target = framework.nodes.find(n => n.id === edge.target);
+                if (!source || !target) return false;
+                
+                return isPointNearLine(world.x, world.y, source.position.x, source.position.y, target.position.x, target.position.y, 8 / camera.zoom);
+            });
+            
+            if (newHoveredEdge !== hoveredEdge) {
+                hoveredEdge = newHoveredEdge;
+                canvas.style.cursor = hoveredEdge ? 'pointer' : 'grab';
+            }
+        }
+        
         function onMouseUp() {
             isDragging = false;
         }
@@ -523,14 +613,96 @@
                 return Math.sqrt(dx * dx + dy * dy) < 25 / camera.zoom;
             });
             
+            // Find clicked edge
+            let clickedEdge = null;
+            if (!clickedNode) {
+                clickedEdge = framework.edges.find(edge => {
+                    const source = framework.nodes.find(n => n.id === edge.source);
+                    const target = framework.nodes.find(n => n.id === edge.target);
+                    if (!source || !target) return false;
+                    
+                    return isPointNearLine(world.x, world.y, source.position.x, source.position.y, target.position.x, target.position.y, 8 / camera.zoom);
+                });
+            }
+            
             if (clickedNode) {
                 selectedNode = clickedNode;
+                selectedEdge = null;
                 showNodeDetails(clickedNode);
+            } else if (clickedEdge) {
+                selectedNode = null;
+                selectedEdge = clickedEdge;
+                showEdgeDetails(clickedEdge);
             } else {
                 selectedNode = null;
+                selectedEdge = null;
                 document.getElementById('sidebar-content').innerHTML = 
-                    '<p style="color: #666; font-size: 13px;">Click a node to see details</p>';
+                    '<p style="color: #666; font-size: 13px;">Click a node or edge to see details</p>';
             }
+        }
+        
+        function isPointNearLine(px, py, x1, y1, x2, y2, threshold) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            if (length === 0) return false;
+            
+            const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (length * length)));
+            const projX = x1 + t * dx;
+            const projY = y1 + t * dy;
+            const distance = Math.sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY));
+            
+            return distance < threshold;
+        }
+        
+        function showEdgeDetails(edge) {
+            const source = framework.nodes.find(n => n.id === edge.source);
+            const target = framework.nodes.find(n => n.id === edge.target);
+            
+            let html = `
+                <div class="node-info">
+                    <h3>Edge: ${edge.id || 'Unnamed'}</h3>
+                    <div class="type">${edge.type || 'connection'}</div>
+                    <div class="meta">From: ${source?.name || edge.source}</div>
+                    <div class="meta">To: ${target?.name || edge.target}</div>
+            `;
+            
+            if (edge.description) {
+                html += `<div class="content"><strong>Description:</strong> ${edge.description}</div>`;
+            }
+            
+            if (edge.strength !== undefined) {
+                html += `<div class="meta"><strong>Strength:</strong> ${Math.round(edge.strength * 100)}%</div>`;
+            }
+            
+            if (edge.weight !== undefined) {
+                html += `<div class="meta"><strong>Weight:</strong> ${edge.weight}</div>`;
+            }
+            
+            if (edge.confidence !== undefined) {
+                html += `<div class="meta"><strong>Confidence:</strong> ${Math.round(edge.confidence * 100)}%</div>`;
+            }
+            
+            if (edge.lag !== undefined) {
+                html += `<div class="meta"><strong>Time Lag:</strong> ${edge.lag}</div>`;
+            }
+            
+            // Enhanced metadata display for edges
+            if (edge.metadata) {
+                const shownKeys = ['description', 'strength', 'weight', 'confidence', 'lag'];
+                Object.keys(edge.metadata).forEach(key => {
+                    if (!shownKeys.includes(key) && edge.metadata[key] !== undefined && edge.metadata[key] !== null) {
+                        const value = typeof edge.metadata[key] === 'object' ? JSON.stringify(edge.metadata[key]) : String(edge.metadata[key]);
+                        if (value.length < 100) {
+                            html += `<div class="meta"><strong>${key}:</strong> ${value}</div>`;
+                        }
+                    }
+                });
+            }
+            
+            html += '</div>';
+            
+            document.getElementById('sidebar-content').innerHTML = html;
         }
         
         function showNodeDetails(node) {
@@ -541,25 +713,52 @@
                 <div class="node-info">
                     <h3>${node.name}</h3>
                     <div class="type">${node.type}</div>
+                    <div class="meta">ID: ${node.id}</div>
             `;
             
+            // Enhanced metadata display
             if (node.metadata) {
                 if (node.metadata.summary) {
-                    html += `<div class="content"><em>${node.metadata.summary}</em></div>`;
+                    html += `<div class="content"><strong>Summary:</strong> <em>${node.metadata.summary}</em></div>`;
                 }
                 if (node.metadata.content) {
-                    html += `<div class="content">${node.metadata.content.substring(0, 200)}${node.metadata.content.length > 200 ? '...' : ''}</div>`;
+                    html += `<div class="content"><strong>Content:</strong> ${node.metadata.content.substring(0, 300)}${node.metadata.content.length > 300 ? '...' : ''}</div>`;
+                }
+                if (node.metadata.description) {
+                    html += `<div class="content"><strong>Description:</strong> ${node.metadata.description}</div>`;
                 }
                 if (node.metadata.formula) {
-                    html += `<div class="content"><strong>Formula:</strong> ${node.metadata.formula}</div>`;
+                    html += `<div class="content"><strong>Formula:</strong> <code style="background: #333; padding: 2px 4px; border-radius: 3px;">${node.metadata.formula}</code></div>`;
                 }
                 if (node.metadata.values) {
-                    const values = Array.isArray(node.metadata.values) ? node.metadata.values.slice(0, 5) : [node.metadata.values];
-                    html += `<div class="meta">Values: ${values.join(', ')}${node.metadata.values.length > 5 ? '...' : ''}</div>`;
+                    const values = Array.isArray(node.metadata.values) ? node.metadata.values.slice(0, 10) : [node.metadata.values];
+                    html += `<div class="meta"><strong>Values:</strong> ${values.join(', ')}${Array.isArray(node.metadata.values) && node.metadata.values.length > 10 ? '...' : ''}</div>`;
                 }
-                if (node.metadata.importance) {
-                    html += `<div class="meta">Importance: ${Math.round(node.metadata.importance * 100)}%</div>`;
+                if (node.metadata.units) {
+                    html += `<div class="meta"><strong>Units:</strong> ${node.metadata.units}</div>`;
                 }
+                if (node.metadata.importance !== undefined) {
+                    html += `<div class="meta"><strong>Importance:</strong> ${Math.round(node.metadata.importance * 100)}%</div>`;
+                }
+                if (node.metadata.tags && Array.isArray(node.metadata.tags)) {
+                    html += `<div class="meta"><strong>Tags:</strong> ${node.metadata.tags.join(', ')}</div>`;
+                }
+                
+                // Show all other metadata keys
+                const shownKeys = ['summary', 'content', 'description', 'formula', 'values', 'units', 'importance', 'tags'];
+                Object.keys(node.metadata).forEach(key => {
+                    if (!shownKeys.includes(key) && node.metadata[key] !== undefined && node.metadata[key] !== null) {
+                        const value = typeof node.metadata[key] === 'object' ? JSON.stringify(node.metadata[key]) : String(node.metadata[key]);
+                        if (value.length < 100) {
+                            html += `<div class="meta"><strong>${key}:</strong> ${value}</div>`;
+                        }
+                    }
+                });
+            }
+            
+            // Position information
+            if (node.position) {
+                html += `<div class="meta"><strong>Position:</strong> (${Math.round(node.position.x)}, ${Math.round(node.position.y)})${node.position.z !== undefined ? ', ' + Math.round(node.position.z) : ''}</div>`;
             }
             
             html += '</div>';
@@ -589,39 +788,108 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
+            // Debug: Log drawing attempt (only occasionally to avoid spam)
+            if (Math.random() < 0.01) { // 1% chance to log
+                console.log(`🎨 Drawing frame: ${framework.edges.length} edges, ${framework.nodes.length} nodes`);
+            }
+            
             // Draw edges
-            framework.edges.forEach(edge => {
+            let edgesRendered = 0;
+            framework.edges.forEach((edge, index) => {
                 const source = framework.nodes.find(n => n.id === edge.source);
                 const target = framework.nodes.find(n => n.id === edge.target);
-                if (!source || !target) return;
+                
+                // Debug: Log missing node connections
+                if (!source) {
+                    console.warn(`⚠️ Edge ${edge.id} source node '${edge.source}' not found`);
+                    return;
+                }
+                if (!target) {
+                    console.warn(`⚠️ Edge ${edge.id} target node '${edge.target}' not found`);
+                    return;
+                }
+                
+                // Debug: Log successful edge rendering (only first few to avoid spam)
+                if (index < 3) {
+                    console.log(`✅ Rendering edge ${edge.id}: ${source.name} → ${target.name}`);
+                }
+                edgesRendered++;
                 
                 const from = worldToScreen(source.position.x, source.position.y);
                 const to = worldToScreen(target.position.x, target.position.y);
                 
+                // Determine edge style
+                const isSelected = selectedEdge && selectedEdge === edge;
+                const isConnectedToSelected = selectedNode && (edge.source === selectedNode.id || edge.target === selectedNode.id);
+                const isHovered = hoveredEdge && hoveredEdge === edge;
+                
+                let strokeColor = '#444';
+                let lineWidth = 1.5;
+                
+                if (isSelected) {
+                    strokeColor = '#ff6b35';
+                    lineWidth = 3;
+                } else if (isConnectedToSelected) {
+                    strokeColor = '#8b5cf6';
+                    lineWidth = 2.5;
+                } else if (isHovered) {
+                    strokeColor = '#ff8555';
+                    lineWidth = 2;
+                }
+                
+                // Draw edge with enhanced styling
                 ctx.beginPath();
                 ctx.moveTo(from.x, from.y);
                 ctx.lineTo(to.x, to.y);
-                ctx.strokeStyle = selectedNode && (edge.source === selectedNode.id || edge.target === selectedNode.id) 
-                    ? '#8b5cf6' : '#333';
-                ctx.lineWidth = selectedNode && (edge.source === selectedNode.id || edge.target === selectedNode.id) ? 2 : 1;
-                ctx.stroke();
+                ctx.strokeStyle = strokeColor;
+                ctx.lineWidth = lineWidth;
+                
+                // Add glow effect for selected/hovered edges
+                if (isSelected || isHovered) {
+                    ctx.shadowColor = strokeColor;
+                    ctx.shadowBlur = 8;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                } else {
+                    ctx.stroke();
+                }
                 
                 // Draw arrow
                 const angle = Math.atan2(to.y - from.y, to.x - from.x);
-                const arrowSize = 8;
+                const arrowSize = isSelected ? 12 : (isConnectedToSelected || isHovered ? 10 : 8);
+                
+                // Offset arrow to not overlap with node
+                const nodeRadius = 20;
+                const arrowOffset = nodeRadius + 5;
+                const arrowX = to.x - arrowOffset * Math.cos(angle);
+                const arrowY = to.y - arrowOffset * Math.sin(angle);
+                
                 ctx.beginPath();
-                ctx.moveTo(to.x, to.y);
+                ctx.moveTo(arrowX, arrowY);
                 ctx.lineTo(
-                    to.x - arrowSize * Math.cos(angle - Math.PI / 6),
-                    to.y - arrowSize * Math.sin(angle - Math.PI / 6)
+                    arrowX - arrowSize * Math.cos(angle - Math.PI / 6),
+                    arrowY - arrowSize * Math.sin(angle - Math.PI / 6)
                 );
                 ctx.lineTo(
-                    to.x - arrowSize * Math.cos(angle + Math.PI / 6),
-                    to.y - arrowSize * Math.sin(angle + Math.PI / 6)
+                    arrowX - arrowSize * Math.cos(angle + Math.PI / 6),
+                    arrowY - arrowSize * Math.sin(angle + Math.PI / 6)
                 );
                 ctx.closePath();
-                ctx.fillStyle = ctx.strokeStyle;
+                ctx.fillStyle = strokeColor;
                 ctx.fill();
+                
+                // Draw edge type label for selected/hovered edges
+                if ((isSelected || isHovered) && edge.type && edge.type !== 'dependency') {
+                    const midX = (from.x + to.x) / 2;
+                    const midY = (from.y + to.y) / 2;
+                    
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                    ctx.fillRect(midX - 20, midY - 8, 40, 16);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '10px -apple-system, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(edge.type, midX, midY + 3);
+                }
             });
             
             // Draw nodes
@@ -663,10 +931,10 @@
         
         function animate() {
             // Apply gentle continuous physics
-            const repulsionStrength = 5000;
-            const attractionStrength = 0.002;
-            const damping = 0.95;
-            const minDistance = 200;
+            const repulsionStrength = 8000;
+            const attractionStrength = 0.001;
+            const damping = 0.97;
+            const minDistance = 250;
             
             // Apply gentle repulsion between all nodes
             for (let i = 0; i < framework.nodes.length; i++) {
@@ -679,23 +947,23 @@
                     const dy = nodeB.position.y - nodeA.position.y;
                     const distance = Math.sqrt(dx * dx + dy * dy) || 1;
                     
-                    if (distance < minDistance * 2) {
-                        const force = repulsionStrength / (distance * distance);
+                    if (distance < minDistance * 1.5) {
+                        const force = repulsionStrength / (distance * distance + 100);
                         const fx = (dx / distance) * force;
                         const fy = (dy / distance) * force;
                         
-                        nodeA.velocity.x -= fx * 0.01;
-                        nodeA.velocity.y -= fy * 0.01;
-                        nodeB.velocity.x += fx * 0.01;
-                        nodeB.velocity.y += fy * 0.01;
+                        nodeA.velocity.x -= fx * 0.005;
+                        nodeA.velocity.y -= fy * 0.005;
+                        nodeB.velocity.x += fx * 0.005;
+                        nodeB.velocity.y += fy * 0.005;
                     }
                 }
             }
             
             // Apply gentle attraction along edges
             framework.edges.forEach(edge => {
-                const source = framework.nodes.find(n => n.id === edge.from);
-                const target = framework.nodes.find(n => n.id === edge.to);
+                const source = framework.nodes.find(n => n.id === edge.source);
+                const target = framework.nodes.find(n => n.id === edge.target);
                 
                 if (source && target) {
                     const dx = target.position.x - source.position.x;
@@ -706,10 +974,10 @@
                     const fx = (dx / distance) * force;
                     const fy = (dy / distance) * force;
                     
-                    source.velocity.x += fx * 0.01;
-                    source.velocity.y += fy * 0.01;
-                    target.velocity.x -= fx * 0.01;
-                    target.velocity.y -= fy * 0.01;
+                    source.velocity.x += fx * 0.005;
+                    source.velocity.y += fy * 0.005;
+                    target.velocity.x -= fx * 0.005;
+                    target.velocity.y -= fy * 0.005;
                 }
             });
             
@@ -721,8 +989,8 @@
                 node.velocity.y *= damping;
                 
                 // Add slight random wobble for organic movement
-                node.velocity.x += (Math.random() - 0.5) * 0.05;
-                node.velocity.y += (Math.random() - 0.5) * 0.05;
+                node.velocity.x += (Math.random() - 0.5) * 0.02;
+                node.velocity.y += (Math.random() - 0.5) * 0.02;
             });
             
             draw();

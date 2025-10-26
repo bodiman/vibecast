@@ -91,13 +91,40 @@ export class FrameworkAPI {
         return res.status(404).json({ error: 'Framework not found' });
       }
       
+      // Transform nodes: map nodeId to id for frontend compatibility
+      const transformedNodes = framework.nodes.map(node => ({
+        id: node.nodeId,  // Frontend expects 'id', database has 'nodeId'
+        name: node.name,
+        type: node.type,
+        values: node.values,
+        content: node.content,
+        position: node.position3D || node.position2D || null, // Let frontend handle positioning for nodes without stored positions
+        position3D: node.position3D,
+        position2D: node.position2D,
+        metadata: node.metadata
+      }));
+
+      // Transform edges: extract source.nodeId and target.nodeId as simple string references
+      const transformedEdges = framework.edges.map(edge => ({
+        id: edge.edgeId,
+        source: edge.source.nodeId,  // Frontend expects string, not object
+        target: edge.target.nodeId,  // Frontend expects string, not object
+        type: edge.type,
+        strength: edge.strength,
+        weight: edge.weight,
+        lag: edge.lag,
+        confidence: edge.confidence,
+        description: edge.description,
+        metadata: edge.metadata
+      }));
+
       res.json({
         id: framework.id,
         name: framework.name,
         description: framework.description,
         type: framework.type,
-        nodes: framework.nodes,
-        edges: framework.edges,
+        nodes: transformedNodes,
+        edges: transformedEdges,
         nodeCount: framework.nodeCount,
         edgeCount: framework.edgeCount
       });
