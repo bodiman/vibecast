@@ -1,7 +1,4 @@
 import { DatabaseStorage } from '../storage/DatabaseStorage.js';
-import { Model } from '../models/Model.js';
-import { Variable } from '../models/Variable.js';
-import { Edge } from '../models/Edge.js';
 
 export interface GraphDiffOptions {
   validateOnly?: boolean;
@@ -66,7 +63,7 @@ export class GraphDiffService {
       // Load current model from database
       const currentModel = await this.dbStorage.loadModel(modelName);
       
-      // Convert new graph data to Model format
+      // Convert new graph data to comparable format
       const newModel = this.convertGraphDataToModel(newGraphData);
       
       // Generate diff
@@ -135,34 +132,55 @@ export class GraphDiffService {
     }
   }
 
-  private convertGraphDataToModel(graphData: any): Model {
-    const variables = graphData.nodes?.map((node: any) => new Variable({
+  private convertGraphDataToModel(graphData: any): any {
+    const variables = graphData.nodes?.map((node: any) => ({
       name: node.name,
       type: node.type || 'scalar',
-      formula: node.formula,
       values: node.values,
       metadata: node.metadata,
-      dependencies: node.dependencies || []
+      dependencies: node.dependencies || [],
+      toJSON: () => ({
+        id: node.id,
+        name: node.name,
+        type: node.type || 'scalar',
+        values: node.values,
+        content: node.content,
+        position3D: node.position3D,
+        position2D: node.position2D,
+        metadata: node.metadata
+      })
     })) || [];
 
-    const edges = graphData.edges?.map((edge: any) => new Edge({
+    const edges = graphData.edges?.map((edge: any) => ({
       id: edge.id,
       source: edge.source,
       target: edge.target,
       type: edge.type,
-      metadata: edge.metadata
+      metadata: edge.metadata,
+      toJSON: () => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        type: edge.type,
+        strength: edge.strength,
+        weight: edge.weight,
+        lag: edge.lag,
+        confidence: edge.confidence,
+        description: edge.description,
+        metadata: edge.metadata
+      })
     })) || [];
 
-    return new Model({
+    return {
       name: graphData.model?.name || 'converted_model',
       description: graphData.model?.description,
       metadata: graphData.model?.metadata,
-      variables,
-      edges
-    });
+      listVariables: () => variables,
+      listEdges: () => edges
+    };
   }
 
-  private computeDiff(currentModel: Model, newModel: Model, options: GraphDiffOptions): any {
+  private computeDiff(currentModel: any, newModel: any, options: GraphDiffOptions): any {
     const currentNodes = currentModel.listVariables();
     const newNodes = newModel.listVariables();
     const currentEdges = currentModel.listEdges();
@@ -236,18 +254,17 @@ export class GraphDiffService {
     };
   }
 
-  private hasNodeChanged(current: Variable, updated: Variable, compareMode?: string): boolean {
+  private hasNodeChanged(current: any, updated: any, compareMode?: string): boolean {
     if (compareMode === 'lenient') {
       // Only check critical fields
-      return current.type !== updated.type || 
-             current.formula !== updated.formula;
+      return current.type !== updated.type;
     } else {
       // Strict comparison
       return JSON.stringify(current.toJSON()) !== JSON.stringify(updated.toJSON());
     }
   }
 
-  private hasEdgeChanged(current: Edge, updated: Edge, compareMode?: string): boolean {
+  private hasEdgeChanged(current: any, updated: any, compareMode?: string): boolean {
     if (compareMode === 'lenient') {
       // Only check critical fields
       return current.type !== updated.type;

@@ -16,10 +16,6 @@ model Framework {
   description String?
   type        String   @default("general") // 'knowledge', 'mathematical', 'workflow', 'general'
   
-  // Graph data
-  nodes       Json     // Array of nodes with {id, name, type, metadata, position}
-  edges       Json     // Array of edges with {id, source, target, type, metadata}
-  
   // Metadata
   metadata    Json?    // Additional metadata (tags, category, etc.)
   nodeCount   Int      @default(0)
@@ -44,6 +40,8 @@ model Framework {
   updatedAt   DateTime @updatedAt
   
   // Relations
+  nodes       FrameworkNode[]
+  edges       FrameworkEdge[]
   activities  FrameworkActivity[]
   versions    FrameworkVersion[]
   
@@ -52,6 +50,90 @@ model Framework {
   @@index([visibility])
   @@index([published])
   @@map("frameworks")
+}
+
+// Framework Node - Individual nodes in the graph
+model FrameworkNode {
+  id          String   @id @default(cuid())
+  
+  // Node identification
+  nodeId      String   // User-defined node ID (unique within framework)
+  name        String
+  type        String   // 'scalar', 'series', 'parameter', 'concept', 'entity', etc.
+  
+  // Node content  
+  values      Json?    // Array of values for time series or parameters
+  content     String?  @db.Text // Text content for knowledge nodes
+  
+  // Visual positioning
+  position3D  Json?    // {x, y, z} coordinates for 3D visualization
+  position2D  Json?    // {x, y} coordinates for 2D visualization
+  
+  // Metadata
+  metadata    Json?    // Additional properties, units, description, etc.
+  
+  // Relations
+  framework   Framework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  frameworkId String
+  
+  // Edges where this node is source or target
+  sourceEdges FrameworkEdge[] @relation("SourceNode")
+  targetEdges FrameworkEdge[] @relation("TargetNode")
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Constraints and indexes
+  @@unique([frameworkId, nodeId])
+  @@index([frameworkId])
+  @@index([type])
+  @@index([name])
+  @@map("framework_nodes")
+}
+
+// Framework Edge - Relationships between nodes
+model FrameworkEdge {
+  id          String   @id @default(cuid())
+  
+  // Edge identification
+  edgeId      String   // User-defined edge ID (unique within framework)
+  type        String   // 'dependency', 'temporal', 'causal', 'derived', 'constraint', 'related', etc.
+  
+  // Edge properties
+  strength    Float?   // Relationship strength (0.0 to 1.0)
+  weight      Float?   // Edge weight for algorithms
+  lag         Int?     // Time lag for temporal relationships
+  confidence  Float?   // Confidence in the relationship
+  
+  // Edge content
+  description String?  // Human-readable description
+  
+  // Metadata
+  metadata    Json?    // Additional properties
+  
+  // Relations
+  framework   Framework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  frameworkId String
+  
+  source      FrameworkNode @relation("SourceNode", fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId    String
+  
+  target      FrameworkNode @relation("TargetNode", fields: [targetId], references: [id], onDelete: Cascade)
+  targetId    String
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Constraints and indexes
+  @@unique([frameworkId, edgeId])
+  @@index([frameworkId])
+  @@index([type])
+  @@index([sourceId])
+  @@index([targetId])
+  @@index([strength])
+  @@map("framework_edges")
 }
 
 // Activity log for framework evolution

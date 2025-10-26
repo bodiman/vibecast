@@ -76,15 +76,14 @@ export class FrameworkAPI {
       
       const framework = await prisma.framework.findUnique({
         where: { name },
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          type: true,
+        include: {
           nodes: true,
-          edges: true,
-          nodeCount: true,
-          edgeCount: true
+          edges: {
+            include: {
+              source: true,
+              target: true
+            }
+          }
         }
       });
       
@@ -119,13 +118,60 @@ export class FrameworkAPI {
           name,
           description,
           type: type || 'general',
-          nodes: nodes || [],
-          edges: edges || [],
           nodeCount: (nodes || []).length,
           edgeCount: (edges || []).length,
           metadata: metadata || {}
         }
       });
+      
+      // Create nodes if provided
+      if (nodes && nodes.length > 0) {
+        await prisma.frameworkNode.createMany({
+          data: nodes.map((node: any) => ({
+            frameworkId: framework.id,
+            nodeId: node.id || node.nodeId,
+            name: node.name,
+            type: node.type || 'scalar',
+            formula: node.formula,
+            values: node.values,
+            content: node.content,
+            position3D: node.position3D,
+            position2D: node.position2D,
+            metadata: node.metadata
+          }))
+        });
+      }
+      
+      // Create edges if provided
+      if (edges && edges.length > 0) {
+        // Get created nodes to map IDs
+        const createdNodes = await prisma.frameworkNode.findMany({
+          where: { frameworkId: framework.id },
+          select: { id: true, nodeId: true }
+        });
+        
+        const nodeIdToDbId = new Map();
+        createdNodes.forEach(node => {
+          nodeIdToDbId.set(node.nodeId, node.id);
+        });
+        
+        await prisma.frameworkEdge.createMany({
+          data: edges.map((edge: any) => ({
+            frameworkId: framework.id,
+            edgeId: edge.id || edge.edgeId,
+            type: edge.type || 'dependency',
+            strength: edge.strength,
+            weight: edge.weight,
+            lag: edge.lag,
+            confidence: edge.confidence,
+            formula: edge.formula,
+            description: edge.description,
+            metadata: edge.metadata,
+            sourceId: nodeIdToDbId.get(edge.source),
+            targetId: nodeIdToDbId.get(edge.target)
+          }))
+        });
+      }
       
       // Log activity
       await prisma.frameworkActivity.create({
@@ -148,23 +194,17 @@ export class FrameworkAPI {
   async updateFramework(req: Request, res: Response) {
     try {
       const { name } = req.params;
-      const { description, nodes, edges, metadata } = req.body;
+      const { description, metadata } = req.body;
       
       const framework = await prisma.framework.update({
         where: { name },
         data: {
           ...(description !== undefined && { description }),
-          ...(nodes !== undefined && { 
-            nodes,
-            nodeCount: (nodes as any[]).length 
-          }),
-          ...(edges !== undefined && { 
-            edges,
-            edgeCount: (edges as any[]).length 
-          }),
           ...(metadata !== undefined && { metadata })
         }
       });
+      
+      // Note: For bulk node/edge updates, use the GraphDiffService instead
       
       // Log activity
       await prisma.frameworkActivity.create({
