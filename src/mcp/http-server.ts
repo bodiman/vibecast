@@ -360,7 +360,7 @@ export class ModelitHTTPServer {
 
   private async routeMCPMethod(message: JSONRPCRequest, sessionId: string): Promise<{ message: JSONRPCResponse; sessionId: string }> {
     switch (message.method) {
-      case 'tools/list':
+      case 'list_tools':
         return {
           message: {
             jsonrpc: '2.0',
@@ -455,7 +455,7 @@ export class ModelitHTTPServer {
           sessionId
         };
 
-      case 'tools/call':
+      case 'call_tool':
         const params = message.params as any;
         const { name, arguments: args } = params;
         
