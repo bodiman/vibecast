@@ -286,6 +286,17 @@ export class GraphDiffService {
       if (addedNode.type && !['scalar', 'series', 'parameter'].includes(addedNode.type)) {
         errors.push(`Added node ${addedNode.name} has invalid type: ${addedNode.type}`);
       }
+      
+      // Enhanced formula validation for nodes with formulas
+      if (addedNode.metadata?.formula) {
+        const formulaValidation = this.validateMathematicalFormula(addedNode.metadata.formula, addedNode.name);
+        if (!formulaValidation.isValid) {
+          errors.push(...formulaValidation.errors);
+        }
+        if (formulaValidation.warnings.length > 0) {
+          warnings.push(...formulaValidation.warnings);
+        }
+      }
     }
 
     // Validate edge changes
@@ -309,6 +320,124 @@ export class GraphDiffService {
       isValid: errors.length === 0,
       errors,
       warnings: options.includeWarnings ? warnings : []
+    };
+  }
+
+  /**
+   * Enhanced formula validation that rejects spreadsheet syntax and enforces mathematical modeling patterns
+   */
+  private validateMathematicalFormula(formula: string, nodeName: string): {isValid: boolean; errors: string[]; warnings: string[]} {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!formula || typeof formula !== 'string') {
+      return { isValid: true, errors: [], warnings: [] };
+    }
+
+    const trimmedFormula = formula.trim();
+
+    // Priority 1: Enhanced Pattern Detection - Reject spreadsheet syntax
+    const spreadsheetPatterns = [
+      // Cell references: A1, G9, AA123, etc.
+      /\b[A-Z]+[0-9]+\b/g,
+      // Range syntax: G9:G22, A1:Z100, etc.
+      /\b[A-Z]+[0-9]+:[A-Z]+[0-9]+\b/g,
+      // Excel formulas starting with =
+      /^=/,
+      // Spreadsheet functions: SUM(), AVERAGE(), COUNT(), VLOOKUP(), etc.
+      /\b(SUM|AVERAGE|COUNT|VLOOKUP|HLOOKUP|INDEX|MATCH|IF|COUNTIF|SUMIF|MAX|MIN|STDEV|VAR)\s*\(/gi
+    ];
+
+    for (const pattern of spreadsheetPatterns) {
+      const matches = trimmedFormula.match(pattern);
+      if (matches) {
+        if (pattern.source === '^=') {
+          errors.push(`Formula in node '${nodeName}' starts with '=' which is spreadsheet syntax. Use mathematical expressions like 'REVENUE - COST' instead.`);
+        } else if (pattern.source.includes('[A-Z]+[0-9]+')) {
+          errors.push(`Formula in node '${nodeName}' contains cell references (${matches.join(', ')}). Use node identifiers like 'REVENUE' instead.`);
+        } else if (pattern.source.includes(':')) {
+          errors.push(`Formula in node '${nodeName}' contains range syntax (${matches.join(', ')}). Use individual node identifiers instead.`);
+        } else {
+          errors.push(`Formula in node '${nodeName}' contains spreadsheet function (${matches.join(', ')}). Use mathematical expressions instead.`);
+        }
+      }
+    }
+
+    // Priority 2: Stricter Symbol Extraction
+    const validSymbols = this.extractMathematicalSymbols(trimmedFormula);
+    const invalidSymbols = validSymbols.filter(symbol => this.isInvalidSymbol(symbol));
+
+    if (invalidSymbols.length > 0) {
+      errors.push(`Formula in node '${nodeName}' contains invalid symbols: ${invalidSymbols.join(', ')}. Use meaningful node identifiers like 'REVENUE', 'COST', 'PROFIT' instead.`);
+    }
+
+    // Priority 3: Explicit Validation Rules
+    const validationResult = this.validateMathematicalExpression(trimmedFormula, nodeName);
+    if (!validationResult.isValid) {
+      errors.push(...validationResult.errors);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  /**
+   * Extract symbols from mathematical formulas, filtering out spreadsheet syntax
+   */
+  private extractMathematicalSymbols(formula: string): string[] {
+    if (!formula) return [];
+
+    // Remove mathematical functions but keep their parentheses for proper parsing
+    let cleanedFormula = formula
+      .replace(/\b(sin|cos|tan|log|ln|exp|sqrt|abs|min|max)\s*\(/g, '')
+      .replace(/[+\-*/^(){}[\],;=<>!&|]/g, ' ')
+      .replace(/\d+\.?\d*/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Extract potential symbols
+    const symbols = cleanedFormula
+      .split(' ')
+      .filter(symbol => symbol.length > 0)
+      .filter(symbol => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(symbol))
+      .filter((symbol, index, array) => array.indexOf(symbol) === index);
+
+    return symbols;
+  }
+
+  /**
+   * Check if a symbol is invalid (cell reference pattern)
+   */
+  private isInvalidSymbol(symbol: string): boolean {
+    // Reject cell reference patterns: letter(s) followed by number(s)
+    return /^[A-Z]+[0-9]+$/.test(symbol);
+  }
+
+  /**
+   * Validate mathematical expression structure
+   */
+  private validateMathematicalExpression(formula: string, nodeName: string): {isValid: boolean; errors: string[]} {
+    const errors: string[] = [];
+
+    // Check for valid mathematical operators
+    const validOperators = /[+\-*/^(){}[\]]/;
+    const hasValidOperators = validOperators.test(formula);
+
+    // Check for temporal references (e.g., REVENUE[0], COST[-1])
+    const temporalPattern = /[a-zA-Z_][a-zA-Z0-9_]*\[-?\d+\]/g;
+    const temporalMatches = formula.match(temporalPattern);
+
+    // Check for basic mathematical structure
+    if (!hasValidOperators && !temporalMatches && formula.length > 1) {
+      errors.push(`Formula in node '${nodeName}' appears to be a simple identifier. Use mathematical expressions like 'REVENUE - COST' or temporal references like 'REVENUE[0] - REVENUE[-1]'.`);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
     };
   }
 }

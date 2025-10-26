@@ -527,7 +527,11 @@
                 <div class="form-group">
                     <label for="edit-formula">Formula</label>
                     <textarea id="edit-formula" placeholder="e.g., REVENUE_GROWTH = REVENUE[0] - REVENUE[-1]"></textarea>
-                    <small style="color: #888; font-size: 12px;">Use node identifiers (e.g., REVENUE, COST) to reference other nodes. Dependencies will be created automatically.</small>
+                    <small style="color: #888; font-size: 12px;">
+                        <strong>Valid syntax:</strong> REVENUE - COST, REVENUE[0] - REVENUE[-1], sqrt(REVENUE) * 0.1<br>
+                        <strong>Invalid syntax:</strong> =SUM(G9:G22), A1 + B2, AVERAGE(A1:A10)<br>
+                        Use node identifiers (e.g., REVENUE, COST) to reference other nodes. Dependencies will be created automatically.
+                    </small>
                 </div>
                 <div class="form-group">
                     <label for="edit-units">Units</label>
@@ -1164,6 +1168,32 @@
                 }
                 if (node.metadata.formula) {
                     html += `<div class="content"><strong>Formula:</strong> <code style="background: #333; padding: 2px 4px; border-radius: 3px;">${node.metadata.formula}</code></div>`;
+                    
+                    // Show formula-generated dependencies
+                    const formulaEdges = framework.edges.filter(e => 
+                        e.target === node.id && 
+                        e.metadata?.generatedFromFormula
+                    );
+                    
+                    if (formulaEdges.length > 0) {
+                        const dependencyEdges = formulaEdges.filter(e => e.type === 'dependency');
+                        const temporalEdges = formulaEdges.filter(e => e.type === 'temporal');
+                        
+                        if (dependencyEdges.length > 0) {
+                            html += `<div class="meta" style="color: #10b981; font-size: 11px;"><strong>📐 Dependencies:</strong> ${dependencyEdges.map(e => {
+                                const source = framework.nodes.find(n => n.id === e.source);
+                                return source?.name || e.source;
+                            }).join(', ')}</div>`;
+                        }
+                        
+                        if (temporalEdges.length > 0) {
+                            html += `<div class="meta" style="color: #8b5cf6; font-size: 11px;"><strong>⏰ Temporal:</strong> ${temporalEdges.map(e => {
+                                const source = framework.nodes.find(n => n.id === e.source);
+                                const offset = e.metadata?.timeOffset || 0;
+                                return `${source?.name || e.source}[${offset}]`;
+                            }).join(', ')}</div>`;
+                        }
+                    }
                 }
                 if (node.metadata.values) {
                     const values = Array.isArray(node.metadata.values) ? node.metadata.values.slice(0, 10) : [node.metadata.values];
@@ -1476,7 +1506,7 @@
             requestAnimationFrame(animate);
         }
         
-        // Formula parsing utility (client-side version of server FormulaValidator)
+        // Enhanced formula parsing utility with spreadsheet syntax rejection
         class FormulaParser {
             static extractSymbols(formula) {
                 if (!formula || typeof formula !== 'string') {
@@ -1484,7 +1514,7 @@
                 }
 
                 const cleanedFormula = formula
-                    .replace(/\b(sin|cos|tan|log|ln|exp|sqrt|abs|min|max|sum|avg|count)\s*\(/g, '')
+                    .replace(/\b(sin|cos|tan|log|ln|exp|sqrt|abs|min|max)\s*\(/g, '')
                     .replace(/[+\-*/^(){}[\],;=<>!&|]/g, ' ')
                     .replace(/\d+\.?\d*/g, ' ')
                     .replace(/\s+/g, ' ')
@@ -1508,6 +1538,124 @@
                     invalidSymbols,
                     validSymbols,
                     allSymbols: symbols
+                };
+            }
+
+            /**
+             * Enhanced formula validation that rejects spreadsheet syntax and enforces mathematical modeling patterns
+             */
+            static validateMathematicalFormula(formula, nodeName = 'Node') {
+                const errors = [];
+                const warnings = [];
+
+                if (!formula || typeof formula !== 'string') {
+                    return { isValid: true, errors: [], warnings: [] };
+                }
+
+                const trimmedFormula = formula.trim();
+
+                // Priority 1: Enhanced Pattern Detection - Reject spreadsheet syntax
+                const spreadsheetPatterns = [
+                    // Cell references: A1, G9, AA123, etc.
+                    /\b[A-Z]+[0-9]+\b/g,
+                    // Range syntax: G9:G22, A1:Z100, etc.
+                    /\b[A-Z]+[0-9]+:[A-Z]+[0-9]+\b/g,
+                    // Excel formulas starting with =
+                    /^=/,
+                    // Spreadsheet functions: SUM(), AVERAGE(), COUNT(), VLOOKUP(), etc.
+                    /\b(SUM|AVERAGE|COUNT|VLOOKUP|HLOOKUP|INDEX|MATCH|IF|COUNTIF|SUMIF|MAX|MIN|STDEV|VAR)\s*\(/gi
+                ];
+
+                for (const pattern of spreadsheetPatterns) {
+                    const matches = trimmedFormula.match(pattern);
+                    if (matches) {
+                        if (pattern.source === '^=') {
+                            errors.push(`Formula starts with '=' which is spreadsheet syntax. Use mathematical expressions like 'REVENUE - COST' instead.`);
+                        } else if (pattern.source.includes('[A-Z]+[0-9]+')) {
+                            errors.push(`Formula contains cell references (${matches.join(', ')}). Use node identifiers like 'REVENUE' instead.`);
+                        } else if (pattern.source.includes(':')) {
+                            errors.push(`Formula contains range syntax (${matches.join(', ')}). Use individual node identifiers instead.`);
+                        } else {
+                            errors.push(`Formula contains spreadsheet function (${matches.join(', ')}). Use mathematical expressions instead.`);
+                        }
+                    }
+                }
+
+                // Priority 2: Stricter Symbol Extraction
+                const validSymbols = this.extractMathematicalSymbols(trimmedFormula);
+                const invalidSymbols = validSymbols.filter(symbol => this.isInvalidSymbol(symbol));
+
+                if (invalidSymbols.length > 0) {
+                    errors.push(`Formula contains invalid symbols: ${invalidSymbols.join(', ')}. Use meaningful node identifiers like 'REVENUE', 'COST', 'PROFIT' instead.`);
+                }
+
+                // Priority 3: Explicit Validation Rules
+                const validationResult = this.validateMathematicalExpression(trimmedFormula);
+                if (!validationResult.isValid) {
+                    errors.push(...validationResult.errors);
+                }
+
+                return {
+                    isValid: errors.length === 0,
+                    errors,
+                    warnings
+                };
+            }
+
+            /**
+             * Extract symbols from mathematical formulas, filtering out spreadsheet syntax
+             */
+            static extractMathematicalSymbols(formula) {
+                if (!formula) return [];
+
+                // Remove mathematical functions but keep their parentheses for proper parsing
+                let cleanedFormula = formula
+                    .replace(/\b(sin|cos|tan|log|ln|exp|sqrt|abs|min|max)\s*\(/g, '')
+                    .replace(/[+\-*/^(){}[\],;=<>!&|]/g, ' ')
+                    .replace(/\d+\.?\d*/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                // Extract potential symbols
+                const symbols = cleanedFormula
+                    .split(' ')
+                    .filter(symbol => symbol.length > 0)
+                    .filter(symbol => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(symbol))
+                    .filter((symbol, index, array) => array.indexOf(symbol) === index);
+
+                return symbols;
+            }
+
+            /**
+             * Check if a symbol is invalid (cell reference pattern)
+             */
+            static isInvalidSymbol(symbol) {
+                // Reject cell reference patterns: letter(s) followed by number(s)
+                return /^[A-Z]+[0-9]+$/.test(symbol);
+            }
+
+            /**
+             * Validate mathematical expression structure
+             */
+            static validateMathematicalExpression(formula) {
+                const errors = [];
+
+                // Check for valid mathematical operators
+                const validOperators = /[+\-*/^(){}[\]]/;
+                const hasValidOperators = validOperators.test(formula);
+
+                // Check for temporal references (e.g., REVENUE[0], COST[-1])
+                const temporalPattern = /[a-zA-Z_][a-zA-Z0-9_]*\[-?\d+\]/g;
+                const temporalMatches = formula.match(temporalPattern);
+
+                // Check for basic mathematical structure
+                if (!hasValidOperators && !temporalMatches && formula.length > 1) {
+                    errors.push(`Formula appears to be a simple identifier. Use mathematical expressions like 'REVENUE - COST' or temporal references like 'REVENUE[0] - REVENUE[-1]'.`);
+                }
+
+                return {
+                    isValid: errors.length === 0,
+                    errors
                 };
             }
         }
@@ -1616,16 +1764,26 @@
                 return true;
             }
             
-            const validNodeIds = framework.nodes.map(n => n.id);
-            const validation = FormulaParser.validateFormulaSymbols(formula, validNodeIds);
+            // Use enhanced mathematical formula validation
+            const mathematicalValidation = FormulaParser.validateMathematicalFormula(formula);
             
-            if (validation.isValid) {
-                validationDiv.innerHTML = validation.validSymbols.length > 0 
-                    ? `<span style="color: #10b981;">✓ Valid references: ${validation.validSymbols.join(', ')}</span>`
-                    : '';
+            if (!mathematicalValidation.isValid) {
+                // Show spreadsheet syntax errors
+                validationDiv.innerHTML = `<span style="color: #ef4444;">✗ ${mathematicalValidation.errors.join('<br>')}</span>`;
+                return false;
+            }
+            
+            // If mathematical validation passes, check node references
+            const validNodeIds = framework.nodes.map(n => n.id);
+            const symbolValidation = FormulaParser.validateFormulaSymbols(formula, validNodeIds);
+            
+            if (symbolValidation.isValid) {
+                validationDiv.innerHTML = symbolValidation.validSymbols.length > 0 
+                    ? `<span style="color: #10b981;">✓ Valid references: ${symbolValidation.validSymbols.join(', ')}</span>`
+                    : '<span style="color: #10b981;">✓ Formula syntax is valid</span>';
                 return true;
             } else {
-                validationDiv.innerHTML = `<span style="color: #ef4444;">✗ Invalid references: ${validation.invalidSymbols.join(', ')}</span>`;
+                validationDiv.innerHTML = `<span style="color: #ef4444;">✗ Invalid references: ${symbolValidation.invalidSymbols.join(', ')}</span>`;
                 return false;
             }
         }
@@ -1752,10 +1910,8 @@
                     editedNodes.set(newNode.id, newNode);
                 }
                 
-                // Auto-generate edges from formula if present
-                if (formData.formula) {
-                    generateEdgesFromFormula(formData.formula, node.id || currentEditItem.data.id);
-                }
+                // Always regenerate edges from formula (handles empty formulas too)
+                generateEdgesFromFormula(formData.formula, node.id || currentEditItem.data.id);
                 
                 scheduleAutoSave();
             }
@@ -1763,19 +1919,63 @@
             closeEditModal();
         });
         
-        // Generate edges from formula
+        // Enhanced edge generation from formula with comprehensive validation
         function generateEdgesFromFormula(formula, nodeId) {
+            if (!formula || !formula.trim()) {
+                // If formula is empty, remove all formula-generated edges for this node
+                removeFormulaGeneratedEdges(nodeId);
+                return;
+            }
+
+            // First validate the mathematical formula syntax
+            const mathematicalValidation = FormulaParser.validateMathematicalFormula(formula);
+            if (!mathematicalValidation.isValid) {
+                console.warn(`⚠️ Cannot generate edges from invalid formula: ${mathematicalValidation.errors.join(', ')}`);
+                // Remove existing formula-generated edges since formula is invalid
+                removeFormulaGeneratedEdges(nodeId);
+                return;
+            }
+
+            // Extract symbols using the enhanced parser
+            const symbols = FormulaParser.extractMathematicalSymbols(formula);
             const validNodeIds = framework.nodes.map(n => n.id);
-            const validation = FormulaParser.validateFormulaSymbols(formula, validNodeIds);
             
-            if (validation.isValid && validation.validSymbols.length > 0) {
-                // Remove existing formula-generated edges for this node
-                framework.edges = framework.edges.filter(e => 
-                    !(e.target === nodeId && e.type === 'dependency' && e.metadata?.generatedFromFormula)
+            // Extract temporal references (e.g., REVENUE[0], COST[-1])
+            const temporalPattern = /([a-zA-Z_][a-zA-Z0-9_]*)\[(-?\d+)\]/g;
+            const temporalReferences = [];
+            let match;
+            while ((match = temporalPattern.exec(formula)) !== null) {
+                const nodeName = match[1];
+                const timeOffset = parseInt(match[2]);
+                if (validNodeIds.includes(nodeName)) {
+                    temporalReferences.push({ nodeName, timeOffset });
+                }
+            }
+            
+            // Filter to only include symbols that reference existing nodes
+            const validSymbols = symbols.filter(symbol => validNodeIds.includes(symbol));
+            const invalidSymbols = symbols.filter(symbol => !validNodeIds.includes(symbol));
+
+            if (invalidSymbols.length > 0) {
+                console.warn(`⚠️ Formula references non-existent nodes: ${invalidSymbols.join(', ')}`);
+            }
+
+            // Remove existing formula-generated edges for this node
+            removeFormulaGeneratedEdges(nodeId);
+
+            // Create edges for regular dependencies and temporal references
+            const edgesCreated = [];
+            
+            // Create dependency edges for regular symbol references
+            validSymbols.forEach(symbolId => {
+                // Check if edge already exists (manually created)
+                const existingEdge = framework.edges.find(e => 
+                    e.source === symbolId && 
+                    e.target === nodeId && 
+                    e.type === 'dependency'
                 );
-                
-                // Create new edges for each symbol reference
-                validation.validSymbols.forEach(symbolId => {
+
+                if (!existingEdge) {
                     const edgeId = `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                     const newEdge = {
                         id: edgeId,
@@ -1784,15 +1984,76 @@
                         type: 'dependency',
                         metadata: {
                             generatedFromFormula: true,
-                            formula: formula
+                            formula: formula,
+                            createdAt: new Date().toISOString()
                         }
                     };
                     
                     framework.edges.push(newEdge);
                     editedEdges.set(edgeId, newEdge);
-                });
+                    edgesCreated.push(`dependency: ${symbolId}`);
+                } else {
+                    // Update existing edge metadata to reflect formula generation
+                    existingEdge.metadata = {
+                        ...existingEdge.metadata,
+                        generatedFromFormula: true,
+                        formula: formula,
+                        updatedAt: new Date().toISOString()
+                    };
+                    editedEdges.set(existingEdge.id, existingEdge);
+                    edgesCreated.push(`updated dependency: ${symbolId}`);
+                }
+            });
+
+            // Create temporal edges for temporal references
+            temporalReferences.forEach(({ nodeName, timeOffset }) => {
+                const edgeId = `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const temporalEdge = {
+                    id: edgeId,
+                    source: nodeName,
+                    target: nodeId,
+                    type: 'temporal',
+                    metadata: {
+                        generatedFromFormula: true,
+                        formula: formula,
+                        timeOffset: timeOffset,
+                        createdAt: new Date().toISOString()
+                    }
+                };
                 
-                console.log(`🔗 Generated ${validation.validSymbols.length} dependency edges from formula`);
+                framework.edges.push(temporalEdge);
+                editedEdges.set(edgeId, temporalEdge);
+                edgesCreated.push(`temporal[${timeOffset}]: ${nodeName}`);
+            });
+            
+            if (edgesCreated.length > 0) {
+                console.log(`🔗 Generated ${edgesCreated.length} edges from formula: ${edgesCreated.join(', ')}`);
+            } else {
+                console.log(`ℹ️ No valid node references found in formula: "${formula}"`);
+            }
+        }
+
+        // Helper function to remove formula-generated edges for a node
+        function removeFormulaGeneratedEdges(nodeId) {
+            const edgesToRemove = framework.edges.filter(e => 
+                e.target === nodeId && 
+                e.type === 'dependency' && 
+                e.metadata?.generatedFromFormula
+            );
+
+            edgesToRemove.forEach(edge => {
+                // Remove from framework.edges
+                const index = framework.edges.findIndex(e => e.id === edge.id);
+                if (index !== -1) {
+                    framework.edges.splice(index, 1);
+                }
+                
+                // Remove from editedEdges tracking
+                editedEdges.delete(edge.id);
+            });
+
+            if (edgesToRemove.length > 0) {
+                console.log(`🗑️ Removed ${edgesToRemove.length} formula-generated edges for node ${nodeId}`);
             }
         }
         
