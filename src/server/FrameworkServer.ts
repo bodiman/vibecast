@@ -71,6 +71,17 @@ export class FrameworkServer {
       res.sendFile(viewerPath);
     });
     
+    // Serve Lava chat interface
+    this.app.get('/lava', (req, res) => {
+      const lavaPath = path.join(process.cwd(), 'public', 'lava-chat.html');
+      res.sendFile(lavaPath);
+    });
+    
+    // Alias for AI chat
+    this.app.get('/chat', (req, res) => {
+      res.redirect('/lava');
+    });
+    
     // Serve dashboard
     this.app.get('/dashboard', (req, res) => {
       const dashboardPath = path.join(process.cwd(), 'public', 'framework-dashboard.html');
@@ -95,6 +106,7 @@ export class FrameworkServer {
         console.log('━'.repeat(60));
         console.log(`📍 Address: http://${this.config.host}:${this.config.port}`);
         console.log(`📊 Dashboard: http://${this.config.host}:${this.config.port}/dashboard`);
+        console.log(`💬 AI Chat: http://${this.config.host}:${this.config.port}/lava`);
         console.log(`🔍 Health: http://${this.config.host}:${this.config.port}/health`);
         console.log(`📖 API: http://${this.config.host}:${this.config.port}/api/frameworks`);
         console.log('━'.repeat(60));

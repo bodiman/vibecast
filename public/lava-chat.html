@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat - VibeCast</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0a0a0a;
+            color: #e8e8e8;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+        
+        .scroll-container {
+            height: 100vh;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+        }
+        
+        .section {
+            min-height: 100vh;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Navbar */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 15, 15, 0.98);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #ff6b35;
+            padding: 15px 30px;
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        .navbar.chat-mode {
+            background: rgba(10, 10, 10, 0.98);
+        }
+        
+        .tribe-home {
+            text-decoration: none;
+            color: #ff6b35;
+            font-size: 24px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .tribe-home:hover {
+            color: #ff8555;
+            transform: scale(1.05);
+        }
+        
+        .nav-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #f5f5f5;
+            margin-left: auto;
+        }
+        
+        .scroll-indicator {
+            font-size: 14px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* Configuration Section */
+        .config-section {
+            padding: 100px 40px 40px;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+        }
+        
+        .config-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .config-header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        
+        .config-header h1 {
+            font-size: 48px;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .config-header p {
+            font-size: 18px;
+            opacity: 0.8;
+        }
+        
+        /* Model Selection */
+        .model-selection {
+            background: #151515;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+            transition: all 0.3s ease;
+        }
+        
+        .model-selection:hover {
+            border-color: #ff6b35;
+            box-shadow: 0 8px 32px rgba(255, 107, 53, 0.15);
+        }
+        
+        .model-selection h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #ff6b35;
+        }
+        
+        .model-dropdown {
+            position: relative;
+        }
+        
+        .model-select {
+            width: 100%;
+            padding: 15px 20px;
+            background: #0a0a0a;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            color: #e8e8e8;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23ff6b35' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 20px center;
+            padding-right: 50px;
+        }
+        
+        .model-select:hover {
+            border-color: #ff6b35;
+            background-color: #151515;
+        }
+        
+        .model-select:focus {
+            outline: none;
+            border-color: #ff6b35;
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.15);
+        }
+        
+        .model-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255, 107, 53, 0.1);
+            border-left: 3px solid #ff6b35;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.6;
+            display: none;
+        }
+        
+        .model-info.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        /* Frameworks Section */
+        .frameworks-section {
+            background: #151515;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .frameworks-section h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #ff6b35;
+        }
+        
+        .frameworks-pool {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+            min-height: 100px;
+        }
+        
+        .framework-item {
+            background: #0a0a0a;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+        }
+        
+        .framework-item:hover {
+            border-color: #ff6b35;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.2);
+        }
+        
+        .framework-item.selected {
+            border-color: #ff6b35;
+            background: rgba(255, 107, 53, 0.08);
+        }
+        
+        .framework-checkbox {
+            width: 24px;
+            height: 24px;
+            min-width: 24px;
+            border: 1px solid #2a2a2a;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #151515;
+        }
+        
+        .framework-item:hover .framework-checkbox {
+            border-color: #ff6b35;
+        }
+        
+        .framework-item.selected .framework-checkbox {
+            background: #ff6b35;
+            border-color: #ff6b35;
+        }
+        
+        .framework-checkbox::after {
+            content: '✓';
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .framework-item.selected .framework-checkbox::after {
+            opacity: 1;
+        }
+        
+        .framework-details {
+            flex: 1;
+        }
+        
+        .framework-details h3 {
+            font-size: 16px;
+            margin-bottom: 5px;
+            color: #f5f5f5;
+        }
+        
+        .framework-details .type-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #ff6b35;
+            border-radius: 4px;
+            font-size: 11px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            color: white;
+        }
+        
+        .framework-details .meta {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .selected-frameworks {
+            border-top: 2px solid #3a3a3a;
+            padding-top: 30px;
+            margin-top: 30px;
+        }
+        
+        .selected-frameworks h3 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #ff6b35;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .selected-count {
+            background: #ff6b35;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 14px;
+        }
+        
+        .selected-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: 50px;
+        }
+        
+        .selected-tag {
+            background: rgba(255, 107, 53, 0.2);
+            border: 1px solid #ff6b35;
+            border-radius: 20px;
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .selected-tag:hover {
+            background: rgba(255, 107, 53, 0.3);
+        }
+        
+        .remove-tag {
+            cursor: pointer;
+            font-weight: bold;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+        
+        .remove-tag:hover {
+            opacity: 1;
+        }
+        
+        .empty-state {
+            color: #666;
+            font-style: italic;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        /* Continue Button */
+        .continue-section {
+            text-align: center;
+            margin-top: 40px;
+            padding-bottom: 40px;
+        }
+        
+        .continue-btn {
+            padding: 18px 50px;
+            background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%);
+            border: none;
+            border-radius: 30px;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+        
+        .continue-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.5);
+        }
+        
+        .continue-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .scroll-hint {
+            margin-top: 20px;
+            color: #888;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            animation: bounce 2s infinite;
+        }
+        
+        /* Chat Section */
+        .chat-section {
+            padding: 80px 40px 40px;
+            background: #0a0a0a;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+        
+        .chat-header {
+            margin-bottom: 30px;
+        }
+        
+        .chat-header h2 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: #ff6b35;
+        }
+        
+        .chat-config-summary {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 14px;
+            color: #888;
+        }
+        
+        .chat-config-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .back-to-config {
+            background: #151515;
+            border: 1px solid #2a2a2a;
+            border-radius: 6px;
+            padding: 8px 16px;
+            color: #ff6b35;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .back-to-config:hover {
+            background: #1a1a1a;
+            border-color: #ff6b35;
+        }
+        
+        /* Chat Messages */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #151515;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            min-height: 400px;
+            max-height: calc(100vh - 350px);
+        }
+        
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .message.user {
+            flex-direction: row-reverse;
+        }
+        
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            flex-shrink: 0;
+            text-transform: uppercase;
+        }
+        
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%);
+            color: white;
+        }
+        
+        .message.user .message-avatar::before {
+            content: 'You';
+        }
+        
+        .message.assistant .message-avatar {
+            background: #2a2a2a;
+            color: #ff6b35;
+        }
+        
+        .message.assistant .message-avatar::before {
+            content: 'AI';
+        }
+        
+        .message-content {
+            max-width: 70%;
+            padding: 15px 20px;
+            border-radius: 12px;
+            line-height: 1.8;
+        }
+        
+        .message.user .message-content {
+            background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .message.assistant .message-content {
+            background: #0a0a0a;
+            border: 1px solid #2a2a2a;
+            color: #e8e8e8;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .message-content p {
+            margin-bottom: 12px;
+        }
+        
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+        
+        .message-content ul,
+        .message-content ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .message-content li {
+            margin: 5px 0;
+        }
+        
+        .message-content code {
+            background: rgba(255, 107, 53, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .message-content pre {
+            background: #151515;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 12px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        .message-content pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        .message-attachments {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #2a2a2a;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .message-attachment {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            background: rgba(255, 107, 53, 0.1);
+            border-radius: 6px;
+            font-size: 12px;
+            color: #ff6b35;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            gap: 8px;
+            padding: 15px 20px;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff6b35;
+            animation: typing 1.4s infinite;
+        }
+        
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        /* Chat Input */
+        .chat-input-container {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+        
+        .input-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .file-upload-area {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding: 10px 15px;
+            background: #151515;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #888;
+        }
+        
+        .file-upload-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            color: #ff6b35;
+            transition: all 0.3s ease;
+            padding: 5px 10px;
+            border-radius: 6px;
+        }
+        
+        .file-upload-label:hover {
+            background: rgba(255, 107, 53, 0.1);
+        }
+        
+        .file-upload-input {
+            display: none;
+        }
+        
+        .uploaded-files {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+        
+        .uploaded-file {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px;
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid #ff6b35;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #e8e8e8;
+        }
+        
+        .uploaded-file-name {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .remove-file {
+            cursor: pointer;
+            color: #ff6b35;
+            font-weight: bold;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+        
+        .remove-file:hover {
+            opacity: 1;
+        }
+        
+        .file-info {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .chat-input {
+            flex: 1;
+            min-height: 60px;
+            max-height: 150px;
+            padding: 18px 20px;
+            background: #151515;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            color: #e8e8e8;
+            font-size: 16px;
+            font-family: inherit;
+            resize: none;
+            transition: all 0.3s ease;
+        }
+        
+        .chat-input:focus {
+            outline: none;
+            border-color: #ff6b35;
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.15);
+        }
+        
+        .chat-input::placeholder {
+            color: #666;
+        }
+        
+        .send-btn {
+            padding: 18px 30px;
+            background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .send-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.5);
+        }
+        
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+        
+        @keyframes typing {
+            0%, 60%, 100% {
+                opacity: 0.3;
+                transform: scale(0.8);
+            }
+            30% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #2a2a2a;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ff6b35;
+        }
+        
+        .model-unavailable {
+            opacity: 0.5;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/dashboard" class="tribe-home">Tribe</a>
+        <div class="nav-title">AI Chat</div>
+        <div class="scroll-indicator">
+            <span id="current-section">Configuration</span>
+        </div>
+    </nav>
+
+    <div class="scroll-container" id="scroll-container">
+        <!-- Configuration Section -->
+        <section class="section config-section" id="config-section">
+            <div class="config-container">
+                <div class="config-header">
+                    <h1>AI Configuration</h1>
+                    <p>Select your AI model and frameworks to begin</p>
+                </div>
+
+                <!-- Model Selection -->
+                <div class="model-selection">
+                    <h2>Select AI Model</h2>
+                    <div class="model-dropdown">
+                        <select class="model-select" id="model-select">
+                            <option value="">Choose a model...</option>
+                        </select>
+                        <div class="model-info" id="model-info"></div>
+                    </div>
+                </div>
+
+                <!-- Frameworks Selection -->
+                <div class="frameworks-section">
+                    <h2>Select Frameworks</h2>
+                    <div class="frameworks-pool" id="frameworks-pool">
+                        <div class="empty-state">Loading frameworks...</div>
+                    </div>
+
+                    <div class="selected-frameworks">
+                        <h3>
+                            Selected Frameworks
+                            <span class="selected-count" id="selected-count">0</span>
+                        </h3>
+                        <div class="selected-list" id="selected-list">
+                            <div class="empty-state">No frameworks selected</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Continue Button -->
+                                    <div class="continue-section">
+                    <button class="continue-btn" id="continue-btn" disabled>
+                        Continue to Chat
+                    </button>
+                    <div class="scroll-hint">
+                        <span>or scroll down</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Chat Section -->
+        <section class="section chat-section" id="chat-section">
+            <div class="chat-container">
+                <div class="chat-header">
+                    <h2>Chat Interface</h2>
+                    <div class="chat-config-summary">
+                        <div class="chat-config-item">
+                            <strong>Model:</strong>
+                            <span id="chat-model-name">-</span>
+                        </div>
+                        <div class="chat-config-item">
+                            <strong>Frameworks:</strong>
+                            <span id="chat-frameworks-count">0</span>
+                        </div>
+                        <button class="back-to-config" id="back-to-config">
+                            Back to Configuration
+                        </button>
+                    </div>
+                </div>
+
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message assistant">
+                        <div class="message-avatar"></div>
+                        <div class="message-content">
+                            <p>Hello! I'm ready to help you with your selected frameworks. What would you like to know?</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-container">
+                    <div class="input-wrapper">
+                        <div class="file-upload-area" id="file-upload-area">
+                            <label for="file-upload" class="file-upload-label">
+                                <span>📎</span>
+                                <span>Attach Files</span>
+                            </label>
+                            <input 
+                                type="file" 
+                                id="file-upload" 
+                                class="file-upload-input"
+                                multiple
+                                accept="image/*,.pdf,.txt,.doc,.docx,.json,.csv"
+                            />
+                            <div class="uploaded-files" id="uploaded-files"></div>
+                            <div class="file-info" id="file-info"></div>
+                        </div>
+                        <textarea 
+                            class="chat-input" 
+                            id="chat-input" 
+                            placeholder="Type your message..."
+                            rows="1"
+                        ></textarea>
+                    </div>
+                    <button class="send-btn" id="send-btn">
+                        <span>Send</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // State
+        let selectedModel = null;
+        let selectedFrameworks = new Set();
+        let allFrameworks = [];
+        let chatHistory = [];
+        let isTyping = false;
+        let uploadedFiles = [];
+        let currentModelSupportsFiles = false;
+
+        // Available models configuration
+        const availableModels = [
+            // Add your available models here
+            // Example: { id: 'gpt-4', name: 'GPT-4', provider: 'OpenAI', description: 'Most capable OpenAI model', supportsFiles: true }
+        ];
+
+        // Model info data
+        const modelInfo = {
+            'gpt-4': 'Most capable OpenAI model. Best for complex reasoning, code generation, and creative tasks.',
+            'gpt-4-turbo': 'Faster version of GPT-4 with a 128k context window. Great balance of speed and capability.',
+            'gpt-4-vision': 'GPT-4 with vision capabilities. Can analyze images and documents.',
+            'gpt-3.5-turbo': 'Fast and efficient. Good for most tasks with lower cost.',
+            'claude-3-opus': 'Anthropic\'s most capable model. Excellent for analysis, writing, and complex tasks.',
+            'claude-3-sonnet': 'Balanced performance and speed. Great for everyday tasks.',
+            'claude-3-haiku': 'Fastest Claude model. Best for quick responses and high-throughput tasks.',
+            'gemini-pro': 'Google\'s production-ready model. Strong multimodal capabilities.',
+            'gemini-pro-vision': 'Gemini with vision. Can analyze images and provide detailed insights.',
+            'gemini-ultra': 'Google\'s most capable model. Excels at highly complex tasks.',
+            'ollama-llama2': 'Run locally with Ollama. Privacy-focused, no API costs.',
+            'ollama-mistral': 'Fast local model with excellent performance.',
+            'ollama-codellama': 'Specialized for code generation and programming tasks.',
+            'ollama-llava': 'Local vision model. Can analyze images offline.'
+        };
+        
+        // Models that support file uploads
+        const fileCapableModels = [
+            'gpt-4-vision',
+            'gpt-4-turbo',
+            'claude-3-opus',
+            'claude-3-sonnet',
+            'gemini-pro-vision',
+            'gemini-ultra',
+            'ollama-llava'
+        ];
+        
+        // Check available models from environment or API
+        async function loadAvailableModels() {
+            // For now, mock available models
+            // Replace this with actual API call to check which models are available
+            const mockAvailableModels = [
+                { id: 'gpt-4', name: 'GPT-4', provider: 'OpenAI', description: 'Most capable OpenAI model', supportsFiles: false },
+                { id: 'gpt-4-vision', name: 'GPT-4 Vision', provider: 'OpenAI', description: 'GPT-4 with image analysis', supportsFiles: true },
+                { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'OpenAI', description: 'Fast and efficient', supportsFiles: false },
+                { id: 'claude-3-opus', name: 'Claude 3 Opus', provider: 'Anthropic', description: 'Most capable with file support', supportsFiles: true },
+                { id: 'claude-3-sonnet', name: 'Claude 3 Sonnet', provider: 'Anthropic', description: 'Balanced performance', supportsFiles: true }
+            ];
+            
+            return mockAvailableModels;
+        }
+        
+        // Populate model dropdown
+        async function populateModelDropdown() {
+            const models = await loadAvailableModels();
+            const modelSelect = document.getElementById('model-select');
+            
+            if (models.length === 0) {
+                modelSelect.innerHTML = '<option value="">No models available</option>';
+                modelSelect.disabled = true;
+                return;
+            }
+            
+            // Group by provider
+            const groupedModels = {};
+            models.forEach(model => {
+                if (!groupedModels[model.provider]) {
+                    groupedModels[model.provider] = [];
+                }
+                groupedModels[model.provider].push(model);
+            });
+            
+            let html = '<option value="">Choose a model...</option>';
+            
+            Object.keys(groupedModels).forEach(provider => {
+                html += `<optgroup label="${provider}">`;
+                groupedModels[provider].forEach(model => {
+                    html += `<option value="${model.id}">${model.name}</option>`;
+                });
+                html += '</optgroup>';
+            });
+            
+            modelSelect.innerHTML = html;
+        }
+
+        // DOM elements
+        const scrollContainer = document.getElementById('scroll-container');
+        const modelSelect = document.getElementById('model-select');
+        const modelInfoDiv = document.getElementById('model-info');
+        const frameworksPool = document.getElementById('frameworks-pool');
+        const selectedList = document.getElementById('selected-list');
+        const selectedCount = document.getElementById('selected-count');
+        const continueBtn = document.getElementById('continue-btn');
+        const backToConfigBtn = document.getElementById('back-to-config');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const currentSectionSpan = document.getElementById('current-section');
+        const chatModelName = document.getElementById('chat-model-name');
+        const chatFrameworksCount = document.getElementById('chat-frameworks-count');
+        const navbar = document.querySelector('.navbar');
+
+        // Load frameworks
+        async function loadFrameworks() {
+            try {
+                const response = await fetch('/api/frameworks');
+                if (!response.ok) throw new Error('Failed to load frameworks');
+                
+                allFrameworks = await response.json();
+                renderFrameworks();
+            } catch (error) {
+                console.error('Error loading frameworks:', error);
+                frameworksPool.innerHTML = '<div class="empty-state">Failed to load frameworks</div>';
+            }
+        }
+
+        // Render frameworks
+        function renderFrameworks() {
+            if (allFrameworks.length === 0) {
+                frameworksPool.innerHTML = '<div class="empty-state">No frameworks available</div>';
+                return;
+            }
+
+            frameworksPool.innerHTML = allFrameworks.map(framework => `
+                <div class="framework-item ${selectedFrameworks.has(framework.name) ? 'selected' : ''}" 
+                     data-framework="${framework.name}">
+                    <div class="framework-checkbox"></div>
+                    <div class="framework-details">
+                        <h3>${framework.name}</h3>
+                        <div class="type-badge">${framework.type}</div>
+                        <div class="meta">
+                            ${framework.nodeCount} nodes · ${framework.edgeCount} edges
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Add click handlers
+            document.querySelectorAll('.framework-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const frameworkName = item.dataset.framework;
+                    toggleFramework(frameworkName);
+                });
+            });
+        }
+
+        // Toggle framework selection
+        function toggleFramework(frameworkName) {
+            if (selectedFrameworks.has(frameworkName)) {
+                selectedFrameworks.delete(frameworkName);
+            } else {
+                selectedFrameworks.add(frameworkName);
+            }
+            updateUI();
+        }
+
+        // Update UI
+        function updateUI() {
+            // Update framework items
+            document.querySelectorAll('.framework-item').forEach(item => {
+                const frameworkName = item.dataset.framework;
+                if (selectedFrameworks.has(frameworkName)) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+
+            // Update selected list
+            selectedCount.textContent = selectedFrameworks.size;
+            
+            if (selectedFrameworks.size === 0) {
+                selectedList.innerHTML = '<div class="empty-state">No frameworks selected</div>';
+            } else {
+                selectedList.innerHTML = Array.from(selectedFrameworks).map(name => `
+                    <div class="selected-tag">
+                        <span>${name}</span>
+                        <span class="remove-tag" data-framework="${name}">×</span>
+                    </div>
+                `).join('');
+
+                // Add remove handlers
+                document.querySelectorAll('.remove-tag').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        toggleFramework(btn.dataset.framework);
+                    });
+                });
+            }
+
+            // Update continue button
+            const canContinue = selectedModel && selectedFrameworks.size > 0;
+            continueBtn.disabled = !canContinue;
+
+            // Update chat config summary
+            chatModelName.textContent = selectedModel ? modelSelect.options[modelSelect.selectedIndex].text : '-';
+            chatFrameworksCount.textContent = selectedFrameworks.size;
+        }
+
+        // Model selection handler
+        modelSelect.addEventListener('change', (e) => {
+            selectedModel = e.target.value;
+            
+            // Check if model supports files
+            currentModelSupportsFiles = fileCapableModels.includes(selectedModel);
+            updateFileUploadUI();
+            
+            if (selectedModel && modelInfo[selectedModel]) {
+                modelInfoDiv.textContent = modelInfo[selectedModel];
+                if (currentModelSupportsFiles) {
+                    modelInfoDiv.textContent += ' • Supports file uploads';
+                }
+                modelInfoDiv.classList.add('active');
+            } else {
+                modelInfoDiv.classList.remove('active');
+            }
+            
+            updateUI();
+        });
+
+        // Continue button handler
+        continueBtn.addEventListener('click', () => {
+            scrollContainer.scrollTo({
+                top: scrollContainer.scrollHeight,
+                behavior: 'smooth'
+            });
+        });
+
+        // Back to config button handler
+        backToConfigBtn.addEventListener('click', () => {
+            scrollContainer.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        // Scroll handler
+        scrollContainer.addEventListener('scroll', () => {
+            const scrollTop = scrollContainer.scrollTop;
+            const scrollHeight = scrollContainer.scrollHeight;
+            const clientHeight = scrollContainer.clientHeight;
+            const scrollPercent = scrollTop / (scrollHeight - clientHeight);
+
+            if (scrollPercent > 0.5) {
+                currentSectionSpan.textContent = 'Chat';
+                navbar.classList.add('chat-mode');
+            } else {
+                currentSectionSpan.textContent = 'Configuration';
+                navbar.classList.remove('chat-mode');
+            }
+        });
+
+        // Chat input auto-resize
+        chatInput.addEventListener('input', () => {
+            chatInput.style.height = 'auto';
+            chatInput.style.height = Math.min(chatInput.scrollHeight, 150) + 'px';
+        });
+
+        // Send message
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message || isTyping) return;
+
+            // Add user message with files if any
+            addMessage('user', message, uploadedFiles);
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+
+            // Store in history
+            chatHistory.push({ 
+                role: 'user', 
+                content: message,
+                files: uploadedFiles.map(f => ({ name: f.name, type: f.type, size: f.size }))
+            });
+
+            // Clear uploaded files after sending
+            const filesCopy = [...uploadedFiles];
+            uploadedFiles = [];
+            updateFileUploadUI();
+
+            // Show typing indicator
+            showTyping();
+
+            // Simulate AI response (replace with actual API call)
+            setTimeout(() => {
+                hideTyping();
+                const response = generateResponse(message, filesCopy);
+                addMessage('assistant', response);
+                chatHistory.push({ role: 'assistant', content: response });
+            }, 2000 + Math.random() * 1000);
+        }
+
+        // Add message to chat
+        function addMessage(role, content, files = []) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            let filesHtml = '';
+            if (files && files.length > 0) {
+                filesHtml = `
+                    <div class="message-attachments">
+                        ${files.map(f => `
+                            <div class="message-attachment">
+                                <span>📎</span>
+                                <span>${f.name}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar"></div>
+                <div class="message-content">
+                    ${formatMessageContent(content)}
+                    ${filesHtml}
+                </div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Format message content with proper HTML
+        function formatMessageContent(content) {
+            // Split into paragraphs
+            const paragraphs = content.split('\n\n');
+            
+            return paragraphs.map(para => {
+                // Check for lists
+                if (para.trim().match(/^[-•*]\s/m)) {
+                    const items = para.split('\n').filter(line => line.trim());
+                    return '<ul>' + items.map(item => 
+                        `<li>${item.replace(/^[-•*]\s/, '')}</li>`
+                    ).join('') + '</ul>';
+                }
+                
+                // Check for numbered lists
+                if (para.trim().match(/^\d+\.\s/m)) {
+                    const items = para.split('\n').filter(line => line.trim());
+                    return '<ol>' + items.map(item => 
+                        `<li>${item.replace(/^\d+\.\s/, '')}</li>`
+                    ).join('') + '</ol>';
+                }
+                
+                // Regular paragraph
+                return `<p>${para}</p>`;
+            }).join('');
+        }
+
+        // Show typing indicator
+        function showTyping() {
+            isTyping = true;
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message assistant';
+            typingDiv.id = 'typing-indicator';
+            typingDiv.innerHTML = `
+                <div class="message-avatar"></div>
+                <div class="message-content">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Hide typing indicator
+        function hideTyping() {
+            isTyping = false;
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        // Generate response (mock - replace with actual API)
+        function generateResponse(message, files = []) {
+            const frameworks = Array.from(selectedFrameworks).join(', ');
+            const lowerMessage = message.toLowerCase();
+            
+            let response = '';
+            
+            // File-aware responses
+            if (files && files.length > 0) {
+                const fileNames = files.map(f => f.name).join(', ');
+                response = `I've analyzed your uploaded file(s): ${fileNames}.\n\n`;
+            }
+            
+            // Context-aware responses based on message content
+            if (lowerMessage.includes('help') || lowerMessage.includes('what can you')) {
+                response += `I'm here to assist you with your selected frameworks: ${frameworks}.\n\nI can help you with:\n\n`;
+                response += `- Analyzing relationships between nodes and edges in your frameworks\n`;
+                response += `- Explaining patterns and connections in your data\n`;
+                response += `- Providing insights on framework structure and design\n`;
+                response += `- Answering questions about specific nodes or relationships\n`;
+                response += `- Suggesting optimizations or improvements\n\n`;
+                response += `Feel free to ask me anything specific about your frameworks or upload relevant files for analysis.`;
+            }
+            else if (lowerMessage.includes('analyze') || lowerMessage.includes('explain')) {
+                response += `Based on the frameworks you've selected (${frameworks}), I'll provide a comprehensive analysis.\n\n`;
+                response += `Key observations:\n\n`;
+                response += `1. **Framework Structure**: These frameworks contain interconnected nodes that represent different types of data and relationships. The graph structure allows for complex modeling of dependencies and flows.\n\n`;
+                response += `2. **Node Relationships**: The edges between nodes indicate various types of relationships such as dependencies, transformations, or causal links. Understanding these connections is crucial for effective analysis.\n\n`;
+                response += `3. **Patterns**: Looking at the graph topology, we can identify clusters, central nodes, and potential bottlenecks or key decision points.\n\n`;
+                response += `Would you like me to dive deeper into any specific aspect of these frameworks?`;
+            }
+            else if (lowerMessage.includes('node') || lowerMessage.includes('edge')) {
+                response += `Great question about the graph structure!\n\n`;
+                response += `In your selected frameworks (${frameworks}), nodes and edges form the fundamental building blocks:\n\n`;
+                response += `**Nodes** represent:\n- Parameters or variables\n- Concepts or entities\n- Stages or steps in a process\n- Decision points\n\n`;
+                response += `**Edges** represent:\n- Dependencies between nodes\n- Data flow directions\n- Causal relationships\n- Transformations or operations\n\n`;
+                response += `Each edge can carry metadata like strength, type, or confidence level, which helps in understanding the nature of relationships.\n\n`;
+                response += `Is there a specific node or connection you'd like to explore further?`;
+            }
+            else if (lowerMessage.includes('how') || lowerMessage.includes('why')) {
+                response += `That's an insightful question! Let me break this down for you.\n\n`;
+                response += `When working with frameworks like ${frameworks}, it's important to understand the underlying principles:\n\n`;
+                response += `The framework system is designed to:\n`;
+                response += `• Provide a structured way to model complex relationships\n`;
+                response += `• Enable visual representation of interconnected data\n`;
+                response += `• Support various types of analysis (mathematical, knowledge-based, workflow)\n`;
+                response += `• Facilitate pattern recognition and insights\n\n`;
+                response += `In the context of your question, the answer depends on the specific structure and purpose of your frameworks. `;
+                response += `Each framework type (mathematical, knowledge, workflow) has different characteristics and use cases.\n\n`;
+                response += `Would you like me to elaborate on any particular aspect?`;
+            }
+            else {
+                // Default detailed response
+                response += `Thank you for your question regarding ${frameworks}.\n\n`;
+                response += `Let me provide you with a comprehensive response:\n\n`;
+                response += `The frameworks you've selected offer rich data structures that can be analyzed from multiple perspectives. `;
+                response += `Each framework contains nodes representing different entities or concepts, connected by edges that define their relationships.\n\n`;
+                response += `Key insights:\n\n`;
+                response += `• The graph structure allows for flexible modeling of complex systems\n`;
+                response += `• Node metadata provides additional context for deeper analysis\n`;
+                response += `• Edge properties help quantify and qualify relationships\n`;
+                response += `• The visual representation aids in pattern recognition\n\n`;
+                response += `To get more specific insights, you could:\n`;
+                response += `1. Query specific node types or patterns\n`;
+                response += `2. Analyze the flow and dependencies\n`;
+                response += `3. Explore clusters or communities in the graph\n`;
+                response += `4. Compare different frameworks side by side\n\n`;
+                response += `What would you like to explore next?`;
+            }
+            
+            return response;
+        }
+
+        // Send button handler
+        sendBtn.addEventListener('click', sendMessage);
+
+        // Enter key handler
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // File upload handlers
+        const fileUploadInput = document.getElementById('file-upload');
+        const uploadedFilesDiv = document.getElementById('uploaded-files');
+        const fileInfoDiv = document.getElementById('file-info');
+        
+        fileUploadInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            
+            if (!currentModelSupportsFiles) {
+                alert('The selected model does not support file uploads. Please choose a model with file capabilities.');
+                fileUploadInput.value = '';
+                return;
+            }
+            
+            files.forEach(file => {
+                // Check file size (max 10MB)
+                if (file.size > 10 * 1024 * 1024) {
+                    alert(`File ${file.name} is too large. Maximum size is 10MB.`);
+                    return;
+                }
+                
+                uploadedFiles.push(file);
+            });
+            
+            updateFileUploadUI();
+            fileUploadInput.value = '';
+        });
+        
+        function updateFileUploadUI() {
+            const fileUploadArea = document.getElementById('file-upload-area');
+            
+            // Show/hide upload area based on model support
+            if (!currentModelSupportsFiles) {
+                fileUploadArea.style.display = 'none';
+                return;
+            } else {
+                fileUploadArea.style.display = 'flex';
+            }
+            
+            if (uploadedFiles.length === 0) {
+                uploadedFilesDiv.innerHTML = '';
+                fileInfoDiv.textContent = '';
+                return;
+            }
+            
+            // Display uploaded files
+            uploadedFilesDiv.innerHTML = uploadedFiles.map((file, index) => `
+                <div class="uploaded-file">
+                    <span class="uploaded-file-name">${file.name}</span>
+                    <span class="remove-file" data-index="${index}">×</span>
+                </div>
+            `).join('');
+            
+            // Total size
+            const totalSize = uploadedFiles.reduce((sum, f) => sum + f.size, 0);
+            const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+            fileInfoDiv.textContent = `${uploadedFiles.length} file(s) • ${sizeMB} MB`;
+            
+            // Add remove handlers
+            document.querySelectorAll('.remove-file').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index);
+                    uploadedFiles.splice(index, 1);
+                    updateFileUploadUI();
+                });
+            });
+        }
+
+        // Initialize
+        populateModelDropdown();
+        loadFrameworks();
+    </script>
+</body>
+</html>
