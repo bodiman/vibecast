@@ -523,13 +523,11 @@ function NodeInfoCard({
 
   return (
     <div 
-      className="fixed bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-4 max-w-md min-w-72"
+      className="bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-4 max-w-md min-w-72"
       style={{ 
-        left: position.x, 
-        top: position.y, 
-        zIndex: 10000,
         backgroundColor: 'rgba(31, 41, 55, 0.95)',
-        backdropFilter: 'blur(8px)'
+        backdropFilter: 'blur(8px)',
+        border: '2px solid #4f46e5'
       }}
     >
       {/* Header */}
@@ -713,7 +711,13 @@ export default function GraphViewer3D({
           near: 0.1,
           far: 1000
         }}
-        style={{ background: '#0f0f0f' }}
+        style={{ 
+          background: '#0f0f0f',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          zIndex: 1
+        }}
         gl={{ antialias: true, alpha: false }}
         dpr={window.devicePixelRatio}
       >
@@ -734,21 +738,48 @@ export default function GraphViewer3D({
         {/* Stats removed to prevent overlay issues */}
       </Canvas>
       
+      {/* Debug Card - Always Visible */}
+      <div 
+        className="fixed top-4 right-4 bg-red-600 text-white p-4 rounded-lg border-4 border-yellow-300"
+        style={{ 
+          zIndex: 99999, 
+          fontSize: '16px',
+          fontWeight: 'bold',
+          boxShadow: '0 0 20px rgba(255, 0, 0, 0.8)'
+        }}
+      >
+        🚨 DEBUG CARD - Should be visible above 3D canvas!
+        <br />
+        Nodes: {data.nodes.length}
+        <br />
+        Selected: {infoCardNode?.name || 'None'}
+      </div>
+
       {/* Info Card Overlay */}
       {console.log('📋 Rendering infoCardNode:', infoCardNode?.name || 'none')}
       {infoCardNode && (
-        <div className="node-info-card" style={{ zIndex: 9999 }}>
+        <div 
+          className="node-info-card absolute" 
+          style={{ 
+            zIndex: 1000,
+            top: 20,
+            left: 20
+          }}
+        >
           <NodeInfoCard
             node={infoCardNode}
             data={data}
             onClose={handleCloseInfoCard}
-            position={{ x: 20, y: 20 }}
+            position={{ x: 0, y: 0 }}
           />
         </div>
       )}
       
       {/* Controls hint */}
-      <div className="absolute bottom-4 left-4 bg-gray-900 bg-opacity-90 backdrop-blur text-white p-3 rounded-lg border border-gray-700">
+      <div 
+        className="absolute bottom-4 left-4 bg-gray-900 bg-opacity-90 backdrop-blur text-white p-3 rounded-lg border border-gray-700"
+        style={{ zIndex: 1000 }}
+      >
         <div className="text-xs space-y-1">
           <div className="text-gray-300">🖱️ Drag to rotate • 🔍 Scroll to zoom</div>
           <div className="text-gray-300">📱 Right-click to pan • 👆 Click to select</div>

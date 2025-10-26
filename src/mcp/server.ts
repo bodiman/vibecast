@@ -132,7 +132,7 @@ export class ModelitMCPServer {
             type: 'object',
             properties: {
               name: { type: 'string', description: 'Variable name' },
-              type: { type: 'string', enum: ['scalar', 'series', 'parameter'], description: 'Variable type' },
+              type: { type: 'string', description: 'Variable type (scalar, series, parameter)' },
               formula: { type: 'string', description: 'Mathematical formula referencing other variables (optional for parameters)' },
               metadata: {
                 type: 'object',
@@ -185,7 +185,7 @@ export class ModelitMCPServer {
           inputSchema: {
             type: 'object',
             properties: {
-              timeSteps: { type: 'number', description: 'Number of time steps to evaluate', minimum: 1 },
+              timeSteps: { type: 'number', description: 'Number of time steps to evaluate' },
             },
             required: ['timeSteps'],
           },
@@ -197,7 +197,7 @@ export class ModelitMCPServer {
             type: 'object',
             properties: {
               name: { type: 'string', description: 'Variable name to evaluate' },
-              timeSteps: { type: 'number', description: 'Number of time steps', minimum: 1 },
+              timeSteps: { type: 'number', description: 'Number of time steps' },
             },
             required: ['name', 'timeSteps'],
           },
@@ -236,8 +236,8 @@ export class ModelitMCPServer {
             properties: {
               source: { type: 'string', description: 'Source variable name' },
               target: { type: 'string', description: 'Target variable name' },
-              type: { type: 'string', enum: ['dependency', 'temporal', 'causal', 'derived', 'constraint'], description: 'Edge type' },
-              strength: { type: 'number', minimum: 0, maximum: 1, description: 'Relationship strength (optional)' },
+              type: { type: 'string', description: 'Edge type (dependency, temporal, causal, derived, constraint)' },
+              strength: { type: 'number', description: 'Relationship strength 0-1 (optional)' },
               lag: { type: 'number', description: 'Time lag for temporal relationships (optional)' }
             },
             required: ['source', 'target', 'type'],
@@ -369,7 +369,7 @@ export class ModelitMCPServer {
                       type: 'object',
                       properties: {
                         name: { type: 'string' },
-                        type: { type: 'string', enum: ['scalar', 'series', 'parameter'] },
+                        type: { type: 'string', description: 'Variable type (scalar, series, parameter)' },
                         formula: { type: 'string' },
                         values: { type: 'array', items: { type: 'number' } },
                         metadata: { type: 'object' }
@@ -385,7 +385,7 @@ export class ModelitMCPServer {
                         id: { type: 'string' },
                         source: { type: 'string' },
                         target: { type: 'string' },
-                        type: { type: 'string', enum: ['dependency', 'temporal', 'causal', 'derived', 'constraint'] },
+                        type: { type: 'string', description: 'Edge type (dependency, temporal, causal, derived, constraint)' },
                         metadata: { type: 'object' }
                       },
                       required: ['id', 'source', 'target', 'type']
@@ -415,7 +415,7 @@ export class ModelitMCPServer {
                       type: 'object',
                       properties: {
                         name: { type: 'string' },
-                        type: { type: 'string', enum: ['scalar', 'series', 'parameter'] },
+                        type: { type: 'string', description: 'Variable type (scalar, series, parameter)' },
                         formula: { type: 'string' },
                         values: { type: 'array', items: { type: 'number' } },
                         metadata: { type: 'object' }
@@ -431,7 +431,7 @@ export class ModelitMCPServer {
                         id: { type: 'string' },
                         source: { type: 'string' },
                         target: { type: 'string' },
-                        type: { type: 'string', enum: ['dependency', 'temporal', 'causal', 'derived', 'constraint'] },
+                        type: { type: 'string', description: 'Edge type (dependency, temporal, causal, derived, constraint)' },
                         metadata: { type: 'object' }
                       },
                       required: ['id', 'source', 'target', 'type']
