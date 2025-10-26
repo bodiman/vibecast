@@ -554,4 +554,213 @@ export class DatabaseMarketplaceAPI extends MarketplaceAPI {
       throw new Error(`Search failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+
+  // Bulk operations for GraphDiff support
+  async applyGraphDiff(diff: any): Promise<any> {
+    if (!this.prisma) {
+      throw new Error('Database not initialized');
+    }
+
+    const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const appliedChanges = {
+          nodesAdded: 0,
+          nodesModified: 0,
+          nodesDeleted: 0,
+          edgesAdded: 0,
+          edgesModified: 0,
+          edgesDeleted: 0,
+        };
+
+        // Get or create model
+        let model = await tx.model.findUnique({
+          where: { name: diff.modelName },
+          include: { variables: true, edges: true }
+        });
+
+        if (!model) {
+          model = await tx.model.create({
+            data: {
+              name: diff.modelName,
+              description: `Model created from graph diff`,
+              metadata: {},
+            },
+            include: { variables: true, edges: true }
+          });
+        }
+
+        // Apply node changes
+        // Delete nodes first
+        for (const deletedNode of diff.changes.nodes.deleted) {
+          await tx.variable.deleteMany({
+            where: {
+              modelId: model.id,
+              name: deletedNode.name,
+            }
+          });
+          appliedChanges.nodesDeleted++;
+        }
+
+        // Add new nodes
+        for (const addedNode of diff.changes.nodes.added) {
+          await tx.variable.create({
+            data: {
+              name: addedNode.name,
+              type: addedNode.type,
+              formula: addedNode.formula,
+              values: addedNode.values || [],
+              metadata: addedNode.metadata || {},
+              position3D: addedNode.position3D,
+              modelId: model.id,
+            }
+          });
+          appliedChanges.nodesAdded++;
+        }
+
+        // Modify existing nodes
+        for (const modifiedNode of diff.changes.nodes.modified) {
+          await tx.variable.updateMany({
+            where: {
+              modelId: model.id,
+              name: modifiedNode.old.name,
+            },
+            data: {
+              name: modifiedNode.new.name,
+              type: modifiedNode.new.type,
+              formula: modifiedNode.new.formula,
+              values: modifiedNode.new.values || [],
+              metadata: modifiedNode.new.metadata || {},
+              position3D: modifiedNode.new.position3D,
+            }
+          });
+          appliedChanges.nodesModified++;
+        }
+
+        // Apply edge changes
+        // Delete edges first
+        for (const deletedEdge of diff.changes.edges.deleted) {
+          await tx.edge.deleteMany({
+            where: {
+              modelId: model.id,
+              OR: [
+                { id: deletedEdge.id },
+                { 
+                  AND: [
+                    { source: { name: deletedEdge.source } },
+                    { target: { name: deletedEdge.target } },
+                    { type: deletedEdge.type }
+                  ]
+                }
+              ]
+            }
+          });
+          appliedChanges.edgesDeleted++;
+        }
+
+        // Add new edges
+        for (const addedEdge of diff.changes.edges.added) {
+          // Find source and target variables
+          const sourceVar = await tx.variable.findFirst({
+            where: { modelId: model.id, name: addedEdge.source }
+          });
+          const targetVar = await tx.variable.findFirst({
+            where: { modelId: model.id, name: addedEdge.target }
+          });
+
+          if (sourceVar && targetVar) {
+            await tx.edge.create({
+              data: {
+                type: addedEdge.type,
+                metadata: addedEdge.metadata || {},
+                modelId: model.id,
+                sourceId: sourceVar.id,
+                targetId: targetVar.id,
+              }
+            });
+            appliedChanges.edgesAdded++;
+          }
+        }
+
+        // Modify existing edges
+        for (const modifiedEdge of diff.changes.edges.modified) {
+          const sourceVar = await tx.variable.findFirst({
+            where: { modelId: model.id, name: modifiedEdge.new.source }
+          });
+          const targetVar = await tx.variable.findFirst({
+            where: { modelId: model.id, name: modifiedEdge.new.target }
+          });
+
+          if (sourceVar && targetVar) {
+            await tx.edge.updateMany({
+              where: {
+                modelId: model.id,
+                source: { name: modifiedEdge.old.source },
+                target: { name: modifiedEdge.old.target },
+              },
+              data: {
+                type: modifiedEdge.new.type,
+                metadata: modifiedEdge.new.metadata || {},
+                sourceId: sourceVar.id,
+                targetId: targetVar.id,
+              }
+            });
+            appliedChanges.edgesModified++;
+          }
+        }
+
+        return {
+          appliedChanges,
+          transactionId,
+        };
+      });
+    } catch (error) {
+      throw new Error(`Failed to apply graph diff: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async saveBackup(backupId: string, graphData: any): Promise<void> {
+    if (!this.prisma) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      // Store backup in a simple JSON format in the database
+      // In a real implementation, you might use a dedicated backup table
+      await this.prisma.session.create({
+        data: {
+          id: backupId,
+          userId: 'system',
+          data: {
+            type: 'backup',
+            graphData,
+            timestamp: new Date().toISOString(),
+          },
+        }
+      });
+    } catch (error) {
+      throw new Error(`Failed to save backup: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async restoreBackup(backupId: string): Promise<any> {
+    if (!this.prisma) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const backup = await this.prisma.session.findUnique({
+        where: { id: backupId }
+      });
+
+      if (!backup || !backup.data || (backup.data as any).type !== 'backup') {
+        throw new Error(`Backup ${backupId} not found`);
+      }
+
+      return (backup.data as any).graphData;
+    } catch (error) {
+      throw new Error(`Failed to restore backup: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
 }
