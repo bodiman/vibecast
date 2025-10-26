@@ -13,7 +13,7 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #0f0f0f;
+            background: #1a1a1a;
             color: #e0e0e0;
             overflow: hidden;
         }
@@ -24,9 +24,8 @@
             left: 0;
             right: 0;
             height: 60px;
-            background: rgba(20, 20, 20, 0.95);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid #333;
+            background: #2a2a2a;
+            border-bottom: 2px solid #ff6b35;
             display: flex;
             align-items: center;
             padding: 0 20px;
@@ -34,19 +33,35 @@
             gap: 20px;
         }
         
+        .tribe-home {
+            text-decoration: none;
+            color: #ff6b35;
+            font-size: 20px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-right: 20px;
+        }
+        
+        .tribe-home:hover {
+            color: #ff8555;
+            transform: scale(1.05);
+        }
+        
         #header h1 {
             font-size: 18px;
             font-weight: 600;
-            color: #fff;
+            color: #e0e0e0;
         }
         
         #header .type-badge {
             padding: 4px 12px;
-            background: #8b5cf6;
+            background: #ff6b35;
             border-radius: 12px;
             font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            color: white;
         }
         
         #header .stats {
@@ -63,7 +78,7 @@
             left: 0;
             right: 300px;
             bottom: 0;
-            background: #0f0f0f;
+            background: #1a1a1a;
         }
         
         #canvas {
@@ -82,9 +97,8 @@
             right: 0;
             width: 300px;
             bottom: 0;
-            background: rgba(20, 20, 20, 0.98);
-            backdrop-filter: blur(10px);
-            border-left: 1px solid #333;
+            background: #2a2a2a;
+            border-left: 2px solid #ff6b35;
             overflow-y: auto;
             padding: 20px;
         }
@@ -96,8 +110,8 @@
         }
         
         #sidebar .node-info {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid #333;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 15px;
@@ -106,17 +120,18 @@
         #sidebar .node-info h3 {
             font-size: 14px;
             margin-bottom: 8px;
-            color: #8b5cf6;
+            color: #ff6b35;
         }
         
         #sidebar .node-info .type {
             display: inline-block;
             padding: 2px 8px;
-            background: #333;
+            background: #ff6b35;
             border-radius: 4px;
             font-size: 11px;
             text-transform: uppercase;
             margin-bottom: 10px;
+            color: white;
         }
         
         #sidebar .node-info .content {
@@ -210,6 +225,7 @@
 </head>
 <body>
     <div id="header">
+        <a href="/dashboard" class="tribe-home">🏠 Tribe</a>
         <h1 id="framework-name">Loading...</h1>
         <div class="type-badge" id="framework-type"></div>
         <div class="stats">
@@ -253,25 +269,25 @@
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
         
-        // Node colors by type
+        // Node colors by type (dark theme with orange accents)
         const nodeColors = {
             // Mathematical
-            'parameter': '#3b82f6',
-            'series': '#10b981',
-            'scalar': '#f59e0b',
+            'parameter': '#ff6b35',
+            'series': '#ff8555',
+            'scalar': '#ffa075',
             // Knowledge
-            'concept': '#8b5cf6',
-            'pattern': '#06b6d4',
+            'concept': '#ff6b35',
+            'pattern': '#ff8555',
             'gotcha': '#ef4444',
-            'tool': '#f59e0b',
-            'decision': '#ec4899',
-            'example': '#14b8a6',
-            'insight': '#a855f7',
+            'tool': '#ffa075',
+            'decision': '#ff6b35',
+            'example': '#ff8555',
+            'insight': '#ffa075',
             // Workflow
-            'stage': '#6366f1',
-            'task': '#10b981',
+            'stage': '#ff6b35',
+            'task': '#ff8555',
             // Default
-            'default': '#6b7280'
+            'default': '#ff6b35'
         };
         
         async function loadFramework() {
@@ -504,7 +520,7 @@
             const clickedNode = framework.nodes.find(node => {
                 const dx = node.position.x - world.x;
                 const dy = node.position.y - world.y;
-                return Math.sqrt(dx * dx + dy * dy) < 15 / camera.zoom;
+                return Math.sqrt(dx * dx + dy * dy) < 25 / camera.zoom;
             });
             
             if (clickedNode) {
@@ -611,27 +627,37 @@
             // Draw nodes
             framework.nodes.forEach(node => {
                 const screen = worldToScreen(node.position.x, node.position.y);
-                const radius = 12;
+                const radius = 20; // Increased from 12 to 20
                 const isSelected = selectedNode && selectedNode.id === node.id;
                 
-                // Node circle
+                // Node circle with glow effect
                 ctx.beginPath();
                 ctx.arc(screen.x, screen.y, radius, 0, Math.PI * 2);
+                
+                // Add glow for selected node
+                if (isSelected) {
+                    ctx.shadowColor = '#ff6b35';
+                    ctx.shadowBlur = 20;
+                }
+                
                 ctx.fillStyle = nodeColors[node.type] || nodeColors.default;
                 ctx.fill();
                 
+                // Reset shadow
+                ctx.shadowBlur = 0;
+                
                 // Selection ring
                 if (isSelected) {
-                    ctx.strokeStyle = '#fff';
-                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = '#ff6b35';
+                    ctx.lineWidth = 4;
                     ctx.stroke();
                 }
                 
-                // Label
-                ctx.fillStyle = '#fff';
-                ctx.font = '12px -apple-system, sans-serif';
+                // Label with better styling
+                ctx.fillStyle = '#e0e0e0';
+                ctx.font = 'bold 14px -apple-system, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(node.name.substring(0, 25), screen.x, screen.y + radius + 15);
+                ctx.fillText(node.name.substring(0, 25), screen.x, screen.y + radius + 20);
             });
         }
         
