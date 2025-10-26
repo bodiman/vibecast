@@ -75,6 +75,22 @@
             margin-left: auto;
         }
         
+        .nav-link {
+            font-size: 16px;
+            color: #e8e8e8;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        
+        .nav-link:hover {
+            color: #ff6b35;
+            border-color: #ff6b35;
+            background: rgba(255, 107, 53, 0.1);
+        }
+        
         .scroll-indicator {
             font-size: 14px;
             color: #888;
@@ -96,7 +112,7 @@
         
         .config-header {
             text-align: center;
-            margin-bottom: 50px;
+            margin-bottom: 30px;
         }
         
         .config-header h1 {
@@ -111,6 +127,7 @@
         .config-header p {
             font-size: 18px;
             opacity: 0.8;
+            margin-bottom: 0;
         }
         
         /* Model Selection */
@@ -360,6 +377,7 @@
             text-align: center;
             margin-top: 40px;
             padding-bottom: 40px;
+            display: block;
         }
         
         .continue-btn {
@@ -817,12 +835,119 @@
             opacity: 0.5;
             font-style: italic;
         }
+        
+        /* About Modal */
+        .about-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .about-modal.active {
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .about-content {
+            background: linear-gradient(135deg, #151515 0%, #1a1a1a 100%);
+            border: 1px solid #ff6b35;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            position: relative;
+            animation: slideUp 0.3s ease;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .about-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #e8e8e8;
+            font-size: 28px;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+        
+        .about-close:hover {
+            background: rgba(255, 107, 53, 0.2);
+            color: #ff6b35;
+            transform: rotate(90deg);
+        }
+        
+        .about-content h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ff6b35 0%, #ff8555 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .about-content p {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #e8e8e8;
+            margin-bottom: 20px;
+        }
+        
+        .about-content .feature-list {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+        
+        .about-content .feature-list li {
+            padding: 12px 0;
+            padding-left: 30px;
+            position: relative;
+            color: #e8e8e8;
+            line-height: 1.6;
+        }
+        
+        .about-content .feature-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #ff6b35;
+            font-weight: bold;
+            font-size: 18px;
+        }
     </style>
 </head>
 <body>
     <nav class="navbar">
         <a href="/dashboard" class="tribe-home">Tribe</a>
         <div class="nav-title">AI Chat</div>
+        <a href="#about" class="nav-link" id="about-link">About Us</a>
         <div class="scroll-indicator">
             <span id="current-section">Configuration</span>
         </div>
@@ -939,6 +1064,32 @@
         </section>
     </div>
 
+    <!-- About Us Modal -->
+    <div class="about-modal" id="about-modal">
+        <div class="about-content">
+            <button class="about-close" id="about-close">×</button>
+            <h2>About Tribe</h2>
+            <p>
+                Tribe is an intelligent framework analysis platform powered by advanced AI models. 
+                We help you understand complex data structures, relationships, and patterns in your frameworks.
+            </p>
+            <ul class="feature-list">
+                <li>Access to multiple AI models including GPT-4, Claude 3, and more</li>
+                <li>Deep analysis of graph-based frameworks with nodes and edges</li>
+                <li>Context-aware conversations about your selected frameworks</li>
+                <li>File upload support for compatible models</li>
+                <li>Real-time insights and recommendations</li>
+            </ul>
+            <p>
+                Our platform leverages the Lava API payment gateway to provide seamless access 
+                to cutting-edge AI models, ensuring you always have the best tools for your analysis needs.
+            </p>
+            <p style="margin-top: 30px; font-size: 14px; opacity: 0.7;">
+                Built with ❤️ by the Tribe team
+            </p>
+        </div>
+    </div>
+
     <script>
         // State
         let selectedModel = null;
@@ -1033,17 +1184,37 @@
                 groupedModels[model.provider].push(model);
             });
             
-            let html = '<option value="">Choose a model...</option>';
+            let html = '';
+            let firstModelId = null;
             
             Object.keys(groupedModels).forEach(provider => {
                 html += `<optgroup label="${provider}">`;
                 groupedModels[provider].forEach(model => {
+                    if (!firstModelId) firstModelId = model.id;
                     html += `<option value="${model.id}">${model.name}</option>`;
                 });
                 html += '</optgroup>';
             });
             
             modelSelect.innerHTML = html;
+            
+            // Auto-select the first model
+            if (firstModelId) {
+                modelSelect.value = firstModelId;
+                selectedModel = firstModelId;
+                
+                // Trigger model selection handler
+                if (modelInfo[firstModelId]) {
+                    modelInfoDiv.textContent = modelInfo[firstModelId];
+                    currentModelSupportsFiles = fileCapableModels.includes(firstModelId);
+                    if (currentModelSupportsFiles) {
+                        modelInfoDiv.textContent += ' • Supports file uploads';
+                    }
+                    modelInfoDiv.classList.add('active');
+                }
+                
+                updateUI();
+            }
         }
 
         // DOM elements
@@ -1062,6 +1233,25 @@
         const chatModelName = document.getElementById('chat-model-name');
         const chatFrameworksCount = document.getElementById('chat-frameworks-count');
         const navbar = document.querySelector('.navbar');
+        const aboutLink = document.getElementById('about-link');
+        const aboutModal = document.getElementById('about-modal');
+        const aboutClose = document.getElementById('about-close');
+
+        // About modal handlers
+        aboutLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            aboutModal.classList.add('active');
+        });
+
+        aboutClose.addEventListener('click', () => {
+            aboutModal.classList.remove('active');
+        });
+
+        aboutModal.addEventListener('click', (e) => {
+            if (e.target === aboutModal) {
+                aboutModal.classList.remove('active');
+            }
+        });
 
         // Load frameworks
         async function loadFrameworks() {
@@ -1151,9 +1341,18 @@
                 });
             }
 
-            // Update continue button
+            // Update continue buttons
             const canContinue = selectedModel && selectedFrameworks.size > 0;
             continueBtn.disabled = !canContinue;
+            
+            // Enable/disable scroll based on model selection
+            if (!selectedModel) {
+                scrollContainer.style.scrollSnapType = 'none';
+                scrollContainer.style.overflowY = 'hidden';
+            } else {
+                scrollContainer.style.scrollSnapType = 'y mandatory';
+                scrollContainer.style.overflowY = 'scroll';
+            }
 
             // Update chat config summary
             chatModelName.textContent = selectedModel ? modelSelect.options[modelSelect.selectedIndex].text : '-';
@@ -1181,12 +1380,14 @@
             updateUI();
         });
 
-        // Continue button handler
+        // Continue button handlers
         continueBtn.addEventListener('click', () => {
-            scrollContainer.scrollTo({
-                top: scrollContainer.scrollHeight,
-                behavior: 'smooth'
-            });
+            if (selectedModel) {
+                scrollContainer.scrollTo({
+                    top: scrollContainer.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }
         });
 
         // Back to config button handler
@@ -1197,8 +1398,17 @@
             });
         });
 
-        // Scroll handler
-        scrollContainer.addEventListener('scroll', () => {
+        // Scroll handler with prevention
+        scrollContainer.addEventListener('scroll', (e) => {
+            // Prevent scrolling to chat if no model selected
+            if (!selectedModel) {
+                scrollContainer.scrollTo({
+                    top: 0,
+                    behavior: 'auto'
+                });
+                return;
+            }
+            
             const scrollTop = scrollContainer.scrollTop;
             const scrollHeight = scrollContainer.scrollHeight;
             const clientHeight = scrollContainer.clientHeight;
