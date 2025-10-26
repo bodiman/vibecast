@@ -2,6 +2,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { ModelitHTTPServer } from './mcp/http-server.js';
+import { ModelitMCPServer } from './mcp/server.js';
 function parseArgs(args) {
     const options = {};
     for (let i = 0; i < args.length; i++) {

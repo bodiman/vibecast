@@ -37,7 +37,7 @@ export class DatabaseStorage {
     
     try {
       await this.prisma.$connect();
-      console.log('✅ Connected to database');
+      console.error('✅ Connected to database');
     } catch (error) {
       console.error('❌ Failed to connect to database:', error);
       throw error;

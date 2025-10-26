@@ -660,9 +660,9 @@ export class ModelitHTTPServer {
         const frontendDistPath = path.join(__dirname, '../../frontend/dist');
         const isDevelopment = process.env.NODE_ENV === 'development' || process.env.FRONTEND_DEV === 'true';
         if (isDevelopment) {
-            console.log('🔧 Development mode: Frontend will be served from Vite dev server');
-            console.log('📱 Make sure to run: npm run dev:frontend');
-            console.log('🌐 Frontend URL: http://localhost:5173');
+            console.error('🔧 Development mode: Frontend will be served from Vite dev server');
+            console.error('📱 Make sure to run: npm run dev:frontend');
+            console.error('🌐 Frontend URL: http://localhost:5173');
             // In development, just show a redirect page
             this.app.get('/graph', (req, res) => {
                 res.send(`

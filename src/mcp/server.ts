@@ -587,8 +587,8 @@ export class ModelitMCPServer {
     // If the variable has a formula, extract dependencies and set them
     if (variableArgs.formula) {
       const referencedVars = this.extractVariableReferences(variableArgs.formula);
-      console.log(`Creating variable ${variableArgs.name} with formula: ${variableArgs.formula}`);
-      console.log(`Referenced variables: ${referencedVars.join(', ')}`);
+      console.error(`Creating variable ${variableArgs.name} with formula: ${variableArgs.formula}`);
+      console.error(`Referenced variables: ${referencedVars.join(', ')}`);
       
       // Set the dependencies on the variable
       variableArgs.dependencies = referencedVars;
@@ -602,7 +602,7 @@ export class ModelitMCPServer {
       for (const refVar of variable.dependencies) {
         // Check if the referenced variable exists in the model
         if (this.currentModel.getVariable(refVar)) {
-          console.log(`Creating edge from ${refVar} to ${variable.name}`);
+          console.error(`Creating edge from ${refVar} to ${variable.name}`);
           // Create an edge from the referenced variable to this variable
           const edge = new Edge({
             id: `${refVar}_to_${variable.name}`,
@@ -617,7 +617,7 @@ export class ModelitMCPServer {
           });
           this.currentModel.addEdge(edge);
         } else {
-          console.log(`Referenced variable ${refVar} not found in model`);
+          console.error(`Referenced variable ${refVar} not found in model`);
         }
       }
       

@@ -2,17 +2,12 @@
 import { ModelitMCPServer } from './mcp/server.js';
 import { ModelitHTTPServer } from './mcp/http-server.js';
 async function main() {
+    // Default storage directory in user's home directory
     // Get configuration from environment variables
     const transport = process.env.MODELIT_TRANSPORT || 'stdio';
     const port = parseInt(process.env.PORT || process.env.MODELIT_HTTP_PORT || '3000', 10);
     const host = process.env.MODELIT_HTTP_HOST || '0.0.0.0';
     const databaseUrl = process.env.DATABASE_URL;
-    // Require database URL
-    if (!databaseUrl) {
-        console.error('❌ DATABASE_URL environment variable is required');
-        console.error('Please set DATABASE_URL to your PostgreSQL connection string');
-        process.exit(1);
-    }
     try {
         if (transport === 'http') {
             // Start HTTP server
@@ -21,20 +16,20 @@ async function main() {
                 host,
                 databaseUrl
             });
-            console.log(`Starting Modelit MCP Server in HTTP mode...`);
-            console.log(`Database: ${databaseUrl.split('@')[1]}`);
-            console.log(`Server capabilities: Variable management, Model evaluation, Dependency analysis, 3D Graph Visualization`);
-            console.log('');
+            console.error(`Starting Modelit MCP Server in HTTP mode...`);
+            console.error(`Database: ${databaseUrl ? 'PostgreSQL' : 'File Storage'}`);
+            console.error(`Server capabilities: Variable management, Model evaluation, Dependency analysis, 3D Graph Visualization`);
+            console.error('');
             await httpServer.start();
         }
         else {
             // Start stdio server (default)
             const server = new ModelitMCPServer(databaseUrl);
-            // Initialize database connection
+            // Initialize database connection if available
             await server.initialize();
             // Log startup info to stderr (won't interfere with MCP protocol on stdout/stdin)
             console.error(`Modelit MCP Server starting in stdio mode...`);
-            console.error(`Database: ${databaseUrl.split('@')[1]}`);
+            console.error(`Database: ${databaseUrl ? 'PostgreSQL' : 'File Storage'}`);
             console.error(`Server capabilities: Variable management, Model evaluation, Dependency analysis, 3D Graph Visualization`);
             await server.run();
         }
