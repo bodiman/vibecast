@@ -17,6 +17,47 @@ import { z } from 'zod';
 import { GraphDiffService } from '../services/GraphDiffService.js';
 import { DatabaseStorage } from '../storage/DatabaseStorage.js';
 
+/**
+ * Formula validation utilities
+ */
+class FormulaValidator {
+  /**
+   * Extract all symbols (identifiers) from a mathematical formula
+   */
+  static extractSymbols(formula: string): string[] {
+    if (!formula || typeof formula !== 'string') {
+      return [];
+    }
+
+    const cleanedFormula = formula
+      .replace(/\b(sin|cos|tan|log|ln|exp|sqrt|abs|min|max|sum|avg|count)\s*\(/g, '')
+      .replace(/[+\-*/^(){}[\],;=<>!&|]/g, ' ')
+      .replace(/\d+\.?\d*/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const symbols = cleanedFormula
+      .split(' ')
+      .filter(symbol => symbol.length > 0 && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(symbol))
+      .filter((symbol, index, array) => array.indexOf(symbol) === index);
+
+    return symbols;
+  }
+
+  static validateFormulaSymbols(formula: string, validNodeIds: string[]): {
+    isValid: boolean;
+    invalidSymbols: string[];
+  } {
+    const symbols = this.extractSymbols(formula);
+    const invalidSymbols = symbols.filter(symbol => !validNodeIds.includes(symbol));
+
+    return {
+      isValid: invalidSymbols.length === 0,
+      invalidSymbols
+    };
+  }
+}
+
 const prisma = new PrismaClient();
 const dbStorage = new DatabaseStorage();
 const graphDiffService = new GraphDiffService(dbStorage);
@@ -486,6 +527,45 @@ async function createServer() {
 
         case 'create_framework': {
           const params = CreateFrameworkSchema.parse(args);
+          
+          // Validate formulas before creating framework
+          const nodeIds = params.nodes.map(node => node.id);
+          const validationErrors: string[] = [];
+          
+          // Validate node formulas
+          for (const node of params.nodes) {
+            if (node.metadata?.formula) {
+              const formulaValidation = FormulaValidator.validateFormulaSymbols(node.metadata.formula, nodeIds);
+              if (!formulaValidation.isValid) {
+                validationErrors.push(`Node ${node.name} formula contains invalid symbols: ${formulaValidation.invalidSymbols.join(', ')}. Valid symbols are: ${nodeIds.join(', ')}`);
+              }
+            }
+          }
+          
+          // Validate edge formulas
+          for (const edge of params.edges) {
+            if (edge.metadata?.formula) {
+              const formulaValidation = FormulaValidator.validateFormulaSymbols(edge.metadata.formula, nodeIds);
+              if (!formulaValidation.isValid) {
+                validationErrors.push(`Edge ${edge.id} formula contains invalid symbols: ${formulaValidation.invalidSymbols.join(', ')}. Valid symbols are: ${nodeIds.join(', ')}`);
+              }
+            }
+          }
+          
+          if (validationErrors.length > 0) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    error: 'Formula validation failed',
+                    details: validationErrors
+                  }),
+                },
+              ],
+              isError: true,
+            };
+          }
           
           // Create framework first
           const framework = await prisma.framework.create({

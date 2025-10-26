@@ -221,6 +221,239 @@
             height: 16px;
             border-radius: 50%;
         }
+        
+        /* Edit Mode Controls */
+        .edit-controls {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .edit-btn {
+            background: #ff6b35;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .edit-btn:hover {
+            background: #ff8555;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+        }
+        
+        .edit-btn:active {
+            transform: translateY(0);
+        }
+        
+        .edit-btn.active {
+            background: #8b5cf6;
+        }
+        
+        .save-status {
+            font-size: 12px;
+            color: #888;
+            margin-left: 5px;
+        }
+        
+        .save-status.saving {
+            color: #ff6b35;
+        }
+        
+        .save-status.saved {
+            color: #10b981;
+        }
+        
+        .save-status.error {
+            color: #ef4444;
+        }
+        
+        /* Edit Mode Styles */
+        body.edit-mode #canvas {
+            cursor: crosshair;
+        }
+        
+        body.edit-mode .node-selected {
+            cursor: move;
+        }
+        
+        /* Edit Modal Styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: #2a2a2a;
+            border: 2px solid #ff6b35;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-header h2 {
+            color: #fff;
+            margin: 0;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-close:hover {
+            color: #fff;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #ff6b35;
+            box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.2);
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #3a3a3a;
+        }
+        
+        .btn-primary {
+            background: #ff6b35;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-secondary {
+            background: #3a3a3a;
+            color: #e0e0e0;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-primary:hover {
+            background: #ff8555;
+        }
+        
+        .btn-secondary:hover {
+            background: #4a4a4a;
+        }
+        
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            padding: 5px 0;
+            min-width: 150px;
+            z-index: 10000;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+        
+        .context-menu-item {
+            padding: 8px 15px;
+            cursor: pointer;
+            color: #e0e0e0;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .context-menu-item:hover {
+            background: #3a3a3a;
+        }
+        
+        .context-menu-item.disabled {
+            color: #666;
+            cursor: not-allowed;
+        }
+        
+        .context-menu-divider {
+            height: 1px;
+            background: #3a3a3a;
+            margin: 5px 0;
+        }
     </style>
 </head>
 <body>
@@ -231,6 +464,11 @@
         <div class="stats">
             <span id="node-count">0 nodes</span>
             <span id="edge-count">0 edges</span>
+        </div>
+        <div class="edit-controls">
+            <button id="edit-mode-btn" class="edit-btn">📝 Edit</button>
+            <button id="save-btn" class="edit-btn" style="display: none;">💾 Save</button>
+            <span id="save-status" class="save-status"></span>
         </div>
     </div>
     
@@ -260,6 +498,64 @@
         <div>Loading framework...</div>
     </div>
 
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Edit Node</h2>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form id="edit-form">
+                <div class="form-group">
+                    <label for="edit-name">Name *</label>
+                    <input type="text" id="edit-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-type">Type</label>
+                    <select id="edit-type">
+                        <option value="scalar">Scalar</option>
+                        <option value="series">Series</option>
+                        <option value="parameter">Parameter</option>
+                        <option value="concept">Concept</option>
+                        <option value="entity">Entity</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-description">Description</label>
+                    <textarea id="edit-description" placeholder="Describe this node..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="edit-formula">Formula</label>
+                    <textarea id="edit-formula" placeholder="e.g., REVENUE_GROWTH = REVENUE[0] - REVENUE[-1]"></textarea>
+                    <small style="color: #888; font-size: 12px;">Use node identifiers (e.g., REVENUE, COST) to reference other nodes. Dependencies will be created automatically.</small>
+                </div>
+                <div class="form-group">
+                    <label for="edit-units">Units</label>
+                    <input type="text" id="edit-units" placeholder="e.g., USD, %, units">
+                </div>
+                <div id="formula-validation" style="color: #ef4444; font-size: 12px; margin-top: 5px;"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="context-menu" class="context-menu">
+        <div class="context-menu-item" onclick="addNode(contextMenuPosition.x, contextMenuPosition.y)">
+            ➕ Add Node
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" onclick="editSelectedItem()">
+            ✏️ Edit
+        </div>
+        <div class="context-menu-item" onclick="deleteSelectedItem()">
+            🗑️ Delete
+        </div>
+    </div>
+
     <script>
         // Parse framework name from URL
         const pathParts = window.location.pathname.split('/').filter(p => p && p !== 'framework');
@@ -269,6 +565,18 @@
         let selectedNode = null;
         let selectedEdge = null;
         let hoveredEdge = null;
+        
+        // Edit mode state
+        let isEditMode = false;
+        let editedNodes = new Map(); // Track changes for auto-save
+        let editedEdges = new Map();
+        let autoSaveTimeout = null;
+        let contextMenuPosition = { x: 0, y: 0 };
+        let currentEditItem = null; // Currently being edited in modal
+        
+        // Edge creation state
+        let isCreatingEdge = false;
+        let edgeCreationStart = null;
         
         // Canvas state
         let canvas, ctx;

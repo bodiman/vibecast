@@ -1,5 +1,55 @@
 import { DatabaseStorage } from '../storage/DatabaseStorage.js';
 
+/**
+ * Formula validation utilities
+ */
+class FormulaValidator {
+  /**
+   * Extract all symbols (identifiers) from a mathematical formula
+   * Supports common mathematical notation and functions
+   */
+  static extractSymbols(formula: string): string[] {
+    if (!formula || typeof formula !== 'string') {
+      return [];
+    }
+
+    // Remove common mathematical functions and operators
+    const cleanedFormula = formula
+      .replace(/\b(sin|cos|tan|log|ln|exp|sqrt|abs|min|max|sum|avg|count)\s*\(/g, '') // Remove function names
+      .replace(/[+\-*/^(){}[\],;=<>!&|]/g, ' ') // Replace operators with spaces
+      .replace(/\d+\.?\d*/g, ' ') // Remove numbers
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+
+    // Extract identifiers (words that remain)
+    const symbols = cleanedFormula
+      .split(' ')
+      .filter(symbol => symbol.length > 0 && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(symbol))
+      .filter((symbol, index, array) => array.indexOf(symbol) === index); // Remove duplicates
+
+    return symbols;
+  }
+
+  /**
+   * Validate that all symbols in a formula are valid node identifiers
+   */
+  static validateFormulaSymbols(formula: string, validNodeIds: string[]): {
+    isValid: boolean;
+    invalidSymbols: string[];
+    validSymbols: string[];
+  } {
+    const symbols = this.extractSymbols(formula);
+    const invalidSymbols = symbols.filter(symbol => !validNodeIds.includes(symbol));
+    const validSymbols = symbols.filter(symbol => validNodeIds.includes(symbol));
+
+    return {
+      isValid: invalidSymbols.length === 0,
+      invalidSymbols,
+      validSymbols
+    };
+  }
+}
+
 export interface GraphDiffOptions {
   validateOnly?: boolean;
   includeWarnings?: boolean;
@@ -278,13 +328,45 @@ export class GraphDiffService {
     const errors: string[] = [];
     const warnings: string[] = [];
 
+    // Collect all valid node IDs for formula validation
+    const allNodeIds = new Set<string>();
+    
+    // Add existing nodes
+    for (const node of diff.nodes.added) {
+      if (node.id) allNodeIds.add(node.id);
+    }
+    for (const node of diff.nodes.modified) {
+      if (node.new?.id) allNodeIds.add(node.new.id);
+    }
+    
+    // Add current nodes from database (if available)
+    try {
+      const currentModel = await this.dbStorage.loadModel(diff.modelName || 'temp');
+      const currentNodes = currentModel.listVariables();
+      currentNodes.forEach(node => {
+        if (node.id) allNodeIds.add(node.id);
+      });
+    } catch (error) {
+      // If we can't load current model, continue with what we have
+    }
+
+    const validNodeIds = Array.from(allNodeIds);
+
     // Validate node changes
     for (const addedNode of diff.nodes.added) {
       if (!addedNode.name || typeof addedNode.name !== 'string') {
         errors.push(`Added node has invalid name: ${addedNode.name}`);
       }
-      if (addedNode.type && !['scalar', 'series', 'parameter'].includes(addedNode.type)) {
+      if (addedNode.type && !['scalar', 'series', 'parameter', 'concept', 'entity'].includes(addedNode.type)) {
         errors.push(`Added node ${addedNode.name} has invalid type: ${addedNode.type}`);
+      }
+      
+      // Validate node formula if present
+      if (addedNode.formula) {
+        const formulaValidation = FormulaValidator.validateFormulaSymbols(addedNode.formula, validNodeIds);
+        if (!formulaValidation.isValid) {
+          errors.push(`Node ${addedNode.name} formula contains invalid symbols: ${formulaValidation.invalidSymbols.join(', ')}. Valid symbols are: ${validNodeIds.join(', ')}`);
+        }
       }
     }
 
@@ -293,8 +375,35 @@ export class GraphDiffService {
       if (!addedEdge.source || !addedEdge.target) {
         errors.push(`Added edge has missing source or target: ${addedEdge.id}`);
       }
-      if (addedEdge.type && !['dependency', 'temporal', 'causal', 'derived', 'constraint'].includes(addedEdge.type)) {
+      if (addedEdge.type && !['dependency', 'temporal', 'causal', 'derived', 'constraint', 'related'].includes(addedEdge.type)) {
         errors.push(`Added edge ${addedEdge.id} has invalid type: ${addedEdge.type}`);
+      }
+      
+      // Validate edge formula if present
+      if (addedEdge.formula) {
+        const formulaValidation = FormulaValidator.validateFormulaSymbols(addedEdge.formula, validNodeIds);
+        if (!formulaValidation.isValid) {
+          errors.push(`Edge ${addedEdge.id} formula contains invalid symbols: ${formulaValidation.invalidSymbols.join(', ')}. Valid symbols are: ${validNodeIds.join(', ')}`);
+        }
+      }
+    }
+
+    // Validate modified nodes and edges
+    for (const modifiedNode of diff.nodes.modified) {
+      if (modifiedNode.new?.formula) {
+        const formulaValidation = FormulaValidator.validateFormulaSymbols(modifiedNode.new.formula, validNodeIds);
+        if (!formulaValidation.isValid) {
+          errors.push(`Modified node ${modifiedNode.new.name} formula contains invalid symbols: ${formulaValidation.invalidSymbols.join(', ')}. Valid symbols are: ${validNodeIds.join(', ')}`);
+        }
+      }
+    }
+
+    for (const modifiedEdge of diff.edges.modified) {
+      if (modifiedEdge.new?.formula) {
+        const formulaValidation = FormulaValidator.validateFormulaSymbols(modifiedEdge.new.formula, validNodeIds);
+        if (!formulaValidation.isValid) {
+          errors.push(`Modified edge ${modifiedEdge.new.id} formula contains invalid symbols: ${formulaValidation.invalidSymbols.join(', ')}. Valid symbols are: ${validNodeIds.join(', ')}`);
+        }
       }
     }
 
