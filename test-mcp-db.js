@@ -27,13 +27,28 @@ async function testDatabase() {
     });
     console.log('✅ Model created:', createResult.content[0].text);
     
-    // Test adding a variable
-    const variableResult = await server.handleCreateVariable({
+    // Test adding variables (create dependencies first)
+    const unitsResult = await server.handleCreateVariable({
+      name: 'units',
+      type: 'parameter',
+      metadata: { description: 'Number of units sold' }
+    });
+    console.log('✅ Variable created:', unitsResult.content[0].text);
+    
+    const priceResult = await server.handleCreateVariable({
+      name: 'price',
+      type: 'parameter',
+      metadata: { description: 'Price per unit' }
+    });
+    console.log('✅ Variable created:', priceResult.content[0].text);
+    
+    const salesResult = await server.handleCreateVariable({
       name: 'sales',
       formula: 'units * price',
-      type: 'series'
+      type: 'series',
+      metadata: { description: 'Total sales revenue' }
     });
-    console.log('✅ Variable created:', variableResult.content[0].text);
+    console.log('✅ Variable created:', salesResult.content[0].text);
     
     // Test saving the model
     const saveResult = await server.handleSaveModel({});

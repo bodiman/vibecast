@@ -20,21 +20,18 @@ function Node({
   position, 
   onClick, 
   isSelected, 
-  onPositionChange,
-  onHoverChange
+  onHoverChange,
+  isConnected = false
 }: { 
   node: GraphNode; 
   position: [number, number, number];
   onClick: () => void;
   isSelected: boolean;
-  onPositionChange: (position: [number, number, number]) => void;
   onHoverChange: (hovered: boolean) => void;
+  isConnected?: boolean;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  
-  const { camera, raycaster, mouse } = useThree();
   
   // Color based on node type
   const color = useMemo(() => {
@@ -55,7 +52,7 @@ function Node({
   
   // Use ref for smooth scale animation
   const scaleRef = useRef(1);
-  const targetScale = hovered || isSelected ? 1.2 : 1;
+  const targetScale = hovered || isSelected ? 1.2 : (isConnected ? 1.1 : 1);
   
   // Smooth scale interpolation
   useFrame(() => {
@@ -65,62 +62,17 @@ function Node({
     }
   });
 
-  useFrame(() => {
-    if (meshRef.current && isDragging) {
-      // Update position during drag
-      const currentPosition = meshRef.current.position;
-      onPositionChange([currentPosition.x, currentPosition.y, currentPosition.z]);
-    }
-  });
-
-  const dragStartPosition = useRef<{ x: number, y: number } | null>(null);
-  const hasDragged = useRef(false);
-
-  const handlePointerDown = useCallback((event: any) => {
+  const handleClick = useCallback((event: any) => {
     event.stopPropagation();
-    dragStartPosition.current = { x: event.clientX, y: event.clientY };
-    hasDragged.current = false;
-    setIsDragging(false); // Explicitly set to false on start
-  }, []);
-
-  const handlePointerUp = useCallback((event: any) => {
-    event.stopPropagation();
-    
-    // Only trigger click if we haven't dragged significantly
-    if (!hasDragged.current && dragStartPosition.current) {
-      const deltaX = Math.abs(event.clientX - dragStartPosition.current.x);
-      const deltaY = Math.abs(event.clientY - dragStartPosition.current.y);
-      
-      if (deltaX < 5 && deltaY < 5) {
-        onClick();
-      }
-    }
-    
-    setIsDragging(false);
-    dragStartPosition.current = null;
-    hasDragged.current = false;
-  }, [onClick]);
-
-  const handlePointerMove = useCallback((event: any) => {
-    if (dragStartPosition.current) {
-      const deltaX = Math.abs(event.clientX - dragStartPosition.current.x);
-      const deltaY = Math.abs(event.clientY - dragStartPosition.current.y);
-      
-      // Only start dragging if we've moved significantly
-      if (deltaX > 5 || deltaY > 5) {
-        hasDragged.current = true;
-        setIsDragging(true);
-      }
-    }
-  }, []);
+    console.log('🎯 Node mesh clicked:', node.name);
+    onClick();
+  }, [onClick, node.name]);
 
   return (
     <group position={position}>
       <mesh
         ref={meshRef}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerMove={handlePointerMove}
+        onClick={handleClick}
         onPointerEnter={() => {
           setHovered(true);
           onHoverChange(true);
@@ -134,9 +86,9 @@ function Node({
         <meshStandardMaterial 
           color={color} 
           transparent 
-          opacity={hovered || isSelected ? 0.9 : 0.7}
-          emissive={isSelected ? color : '#000000'}
-          emissiveIntensity={isSelected ? 0.2 : 0}
+          opacity={hovered || isSelected ? 0.9 : (isConnected ? 0.8 : 0.7)}
+          emissive={isSelected ? color : (isConnected ? color : '#000000')}
+          emissiveIntensity={isSelected ? 0.2 : (isConnected ? 0.1 : 0)}
         />
       </mesh>
       
@@ -334,6 +286,7 @@ function Scene({
     setIsHovering(hoverCountRef.current > 0);
   }, []);
 
+
   // Simple force-directed layout simulation with throttling
   useFrame(() => {
     if (data.nodes.length === 0 || !layoutEnabled || isHovering || selectedNode) return;
@@ -477,18 +430,6 @@ function Scene({
     onEdgeClick?.(edge);
   }, [onEdgeClick]);
   
-  const handleNodePositionChange = useCallback((nodeId: string, position: [number, number, number]) => {
-    setNodePositions(prev => ({ ...prev, [nodeId]: position }));
-    
-    // Notify parent of layout changes
-    if (onLayoutChange) {
-      const positions: Record<string, { x: number; y: number; z: number }> = {};
-      Object.entries({ ...nodePositions, [nodeId]: position }).forEach(([id, pos]) => {
-        positions[id] = { x: pos[0], y: pos[1], z: pos[2] };
-      });
-      onLayoutChange(positions);
-    }
-  }, [nodePositions, onLayoutChange]);
   
   return (
     <>
@@ -500,6 +441,13 @@ function Scene({
       {/* Render nodes */}
       {data.nodes.map(node => {
         const position = nodePositions[node.id] || [0, 0, 0];
+        
+        // Check if this node is connected to the selected node
+        const isConnectedToSelected = selectedNode && data.edges.some(edge => 
+          (edge.source === selectedNode && edge.target === node.id) ||
+          (edge.target === selectedNode && edge.source === node.id)
+        );
+        
         return (
           <Node
             key={node.id}
@@ -507,8 +455,8 @@ function Scene({
             position={position}
             onClick={() => handleNodeClick(node)}
             isSelected={selectedNode === node.id}
-            onPositionChange={(pos) => handleNodePositionChange(node.id, pos)}
             onHoverChange={(hovered) => handleNodeHover(node.id, hovered)}
+            isConnected={isConnectedToSelected}
           />
         );
       })}
@@ -521,9 +469,12 @@ function Scene({
         if (!sourcePos || !targetPos) return null;
         
         // Determine if this edge should be highlighted
-        const isHighlighted = hoveredNode && (
+        // Highlight for both hover and selection
+        const isHighlighted = (hoveredNode && (
           edge.source === hoveredNode || edge.target === hoveredNode
-        );
+        )) || (selectedNode && (
+          edge.source === selectedNode || edge.target === selectedNode
+        ));
         
         return (
           <Edge
@@ -572,8 +523,14 @@ function NodeInfoCard({
 
   return (
     <div 
-      className="fixed bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-4 max-w-md min-w-72 z-50"
-      style={{ left: position.x, top: position.y }}
+      className="fixed bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-4 max-w-md min-w-72"
+      style={{ 
+        left: position.x, 
+        top: position.y, 
+        zIndex: 10000,
+        backgroundColor: 'rgba(31, 41, 55, 0.95)',
+        backdropFilter: 'blur(8px)'
+      }}
     >
       {/* Header */}
       <div className="flex justify-between items-start mb-3">
@@ -695,9 +652,13 @@ export default function GraphViewer3D({
   const [infoCardNode, setInfoCardNode] = useState<GraphNode | null>(null);
 
   const handleNodeClick = useCallback((node: GraphNode) => {
-    setInfoCardNode(prev => prev?.id === node.id ? null : node);
+    console.log('🔍 Node clicked:', node.name, node.id);
+    console.log('🔍 Previous infoCardNode:', infoCardNode?.name);
+    // Always show the card for the clicked node (no toggle)
+    setInfoCardNode(node);
+    console.log('🔍 New infoCardNode will be:', node.name);
     onNodeClick?.(node);
-  }, [onNodeClick]);
+  }, [onNodeClick, infoCardNode]);
 
   const handleCloseInfoCard = useCallback(() => {
     setInfoCardNode(null);
@@ -774,8 +735,9 @@ export default function GraphViewer3D({
       </Canvas>
       
       {/* Info Card Overlay */}
+      {console.log('📋 Rendering infoCardNode:', infoCardNode?.name || 'none')}
       {infoCardNode && (
-        <div className="node-info-card">
+        <div className="node-info-card" style={{ zIndex: 9999 }}>
           <NodeInfoCard
             node={infoCardNode}
             data={data}

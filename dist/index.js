@@ -9,8 +9,8 @@ async function main() {
     // Get configuration from environment variables
     const storageDirectory = process.env.MODELIT_STORAGE_DIR || defaultStorageDir;
     const transport = process.env.MODELIT_TRANSPORT || 'stdio';
-    const port = parseInt(process.env.MODELIT_HTTP_PORT || '3000', 10);
-    const host = process.env.MODELIT_HTTP_HOST || 'localhost';
+    const port = parseInt(process.env.PORT || process.env.MODELIT_HTTP_PORT || '3000', 10);
+    const host = process.env.MODELIT_HTTP_HOST || '0.0.0.0';
     const databaseUrl = process.env.DATABASE_URL;
     try {
         if (transport === 'http') {

@@ -315,6 +315,108 @@ export class ModelitMCPServer {
                         },
                     },
                 },
+                {
+                    name: 'load_graph_json',
+                    description: 'Load complete graph structure in JSON format for LLM processing',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            modelName: { type: 'string', description: 'Model name (optional, uses current model if not provided)' },
+                            includeValues: { type: 'boolean', description: 'Include variable values in output (default: true)' },
+                            includeMetadata: { type: 'boolean', description: 'Include metadata in output (default: true)' }
+                        },
+                    },
+                },
+                {
+                    name: 'update_graph_json',
+                    description: 'Update graph structure from JSON data provided by LLM',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            graphData: {
+                                type: 'object',
+                                description: 'Complete graph structure with variables and edges',
+                                properties: {
+                                    variables: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                name: { type: 'string' },
+                                                type: { type: 'string', enum: ['scalar', 'series', 'parameter'] },
+                                                formula: { type: 'string' },
+                                                values: { type: 'array', items: { type: 'number' } },
+                                                metadata: { type: 'object' }
+                                            },
+                                            required: ['name']
+                                        }
+                                    },
+                                    edges: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                id: { type: 'string' },
+                                                source: { type: 'string' },
+                                                target: { type: 'string' },
+                                                type: { type: 'string', enum: ['dependency', 'temporal', 'causal', 'derived', 'constraint'] },
+                                                metadata: { type: 'object' }
+                                            },
+                                            required: ['id', 'source', 'target', 'type']
+                                        }
+                                    }
+                                }
+                            },
+                            modelName: { type: 'string', description: 'Model name (optional, uses current model if not provided)' },
+                            validateOnly: { type: 'boolean', description: 'Only validate the JSON without applying changes (default: false)' }
+                        },
+                        required: ['graphData']
+                    },
+                },
+                {
+                    name: 'validate_graph_json',
+                    description: 'Validate graph JSON data structure and dependencies',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            graphData: {
+                                type: 'object',
+                                description: 'Graph structure to validate',
+                                properties: {
+                                    variables: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                name: { type: 'string' },
+                                                type: { type: 'string', enum: ['scalar', 'series', 'parameter'] },
+                                                formula: { type: 'string' },
+                                                values: { type: 'array', items: { type: 'number' } },
+                                                metadata: { type: 'object' }
+                                            },
+                                            required: ['name']
+                                        }
+                                    },
+                                    edges: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                id: { type: 'string' },
+                                                source: { type: 'string' },
+                                                target: { type: 'string' },
+                                                type: { type: 'string', enum: ['dependency', 'temporal', 'causal', 'derived', 'constraint'] },
+                                                metadata: { type: 'object' }
+                                            },
+                                            required: ['id', 'source', 'target', 'type']
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        required: ['graphData']
+                    },
+                },
             ],
         }));
         this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -365,6 +467,12 @@ export class ModelitMCPServer {
                         return await this.handleQueryModels(args);
                     case 'create_model_version':
                         return await this.handleCreateModelVersion(args);
+                    case 'load_graph_json':
+                        return await this.handleLoadGraphJson(args);
+                    case 'update_graph_json':
+                        return await this.handleUpdateGraphJson(args);
+                    case 'validate_graph_json':
+                        return await this.handleValidateGraphJson(args);
                     default:
                         throw new Error(`Unknown tool: ${name}`);
                 }
@@ -935,6 +1043,308 @@ ${cycles.length > 0 ? `Cycles found:\n${cycles.map(cycle => `- ${cycle.join(' â†
                     text: `Successfully created version ${version} for model '${targetModelName}'`,
                 },
             ],
+        };
+    }
+    // New JSON graph handlers
+    async handleLoadGraphJson(args) {
+        const { modelName, includeValues = true, includeMetadata = true } = args;
+        const targetModelName = modelName || this.currentModel?.name;
+        if (!targetModelName) {
+            throw new Error('No model specified and no current model loaded');
+        }
+        let model;
+        if (targetModelName === this.currentModel?.name) {
+            model = this.currentModel;
+        }
+        else {
+            model = await this.getStorage().loadModel(targetModelName);
+        }
+        const variables = model.listVariables().map(variable => {
+            const varData = {
+                name: variable.name,
+                type: variable.type,
+                formula: variable.formula,
+                dependencies: variable.dependencies
+            };
+            if (includeValues && variable.values) {
+                varData.values = variable.values;
+            }
+            if (includeMetadata && variable.metadata) {
+                varData.metadata = variable.metadata;
+            }
+            return varData;
+        });
+        const edges = model.listEdges().map(edge => {
+            const edgeData = {
+                id: edge.id,
+                source: edge.source,
+                target: edge.target,
+                type: edge.type
+            };
+            if (includeMetadata && edge.metadata) {
+                edgeData.metadata = edge.metadata;
+            }
+            return edgeData;
+        });
+        const graphData = {
+            model: {
+                name: model.name,
+                description: model.description,
+                metadata: includeMetadata ? model.metadata : undefined
+            },
+            variables,
+            edges,
+            statistics: this.getGraphStatistics(model)
+        };
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: JSON.stringify(graphData, null, 2),
+                },
+            ],
+        };
+    }
+    async handleUpdateGraphJson(args) {
+        const { graphData, modelName, validateOnly = false } = args;
+        const targetModelName = modelName || this.currentModel?.name;
+        if (!targetModelName) {
+            throw new Error('No model specified and no current model loaded');
+        }
+        // Validate the JSON structure first
+        const validation = this.validateGraphJsonData(graphData);
+        if (!validation.isValid) {
+            throw new Error(`Graph JSON validation failed: ${validation.errors.join(', ')}`);
+        }
+        if (validateOnly) {
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: 'Graph JSON validation passed successfully',
+                    },
+                ],
+            };
+        }
+        // Load or create the model
+        let model;
+        if (targetModelName === this.currentModel?.name) {
+            model = this.currentModel;
+        }
+        else {
+            try {
+                model = await this.getStorage().loadModel(targetModelName);
+            }
+            catch {
+                // Create new model if it doesn't exist
+                model = new Model({
+                    name: targetModelName,
+                    description: graphData.model?.description || 'Model created from JSON',
+                    metadata: {
+                        created: new Date(),
+                        version: '1.0.0',
+                        ...graphData.model?.metadata
+                    }
+                });
+            }
+        }
+        // Clear existing variables and edges
+        const existingVariables = model.listVariables();
+        const existingEdges = model.listEdges();
+        for (const variable of existingVariables) {
+            model.removeVariable(variable.name);
+        }
+        for (const edge of existingEdges) {
+            model.removeEdge(edge.id);
+        }
+        // Add variables from JSON in dependency order
+        const variablesToAdd = graphData.variables.map(varData => ({
+            name: varData.name,
+            type: varData.type || 'scalar',
+            formula: varData.formula,
+            dependencies: varData.dependencies || [],
+            values: varData.values,
+            metadata: varData.metadata
+        }));
+        // Sort variables by dependency order (parameters first, then computed variables)
+        const sortedVariables = this.sortVariablesByDependencies(variablesToAdd);
+        for (const varData of sortedVariables) {
+            const variable = new Variable(varData);
+            model.addVariable(variable);
+        }
+        // Add edges from JSON
+        for (const edgeData of graphData.edges) {
+            const edge = new Edge({
+                id: edgeData.id,
+                source: edgeData.source,
+                target: edgeData.target,
+                type: edgeData.type,
+                metadata: edgeData.metadata
+            });
+            model.addEdge(edge);
+        }
+        // Update model metadata if provided
+        if (graphData.model?.metadata) {
+            model.metadata = { ...model.metadata, ...graphData.model.metadata };
+        }
+        // Set as current model
+        this.currentModel = model;
+        this.refreshModelGraph();
+        // Save the updated model
+        await this.getStorage().saveModel(model);
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: `Successfully updated model '${targetModelName}' from JSON data. Added ${graphData.variables.length} variables and ${graphData.edges.length} edges.`,
+                },
+            ],
+        };
+    }
+    async handleValidateGraphJson(args) {
+        const { graphData } = args;
+        const validation = this.validateGraphJsonData(graphData);
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: validation.isValid ?
+                        'Graph JSON validation passed successfully' :
+                        `Graph JSON validation failed:\n${validation.errors.join('\n')}`,
+                },
+            ],
+        };
+    }
+    validateGraphJsonData(graphData) {
+        const errors = [];
+        // Validate structure
+        if (!graphData || typeof graphData !== 'object') {
+            errors.push('Graph data must be an object');
+            return { isValid: false, errors };
+        }
+        if (!Array.isArray(graphData.variables)) {
+            errors.push('Variables must be an array');
+        }
+        if (!Array.isArray(graphData.edges)) {
+            errors.push('Edges must be an array');
+        }
+        if (errors.length > 0) {
+            return { isValid: false, errors };
+        }
+        // Validate variables
+        const variableNames = new Set();
+        for (const [index, variable] of graphData.variables.entries()) {
+            if (!variable.name || typeof variable.name !== 'string') {
+                errors.push(`Variable ${index}: name is required and must be a string`);
+                continue;
+            }
+            if (variableNames.has(variable.name)) {
+                errors.push(`Variable ${index}: duplicate name '${variable.name}'`);
+            }
+            variableNames.add(variable.name);
+            if (variable.type && !['scalar', 'series', 'parameter'].includes(variable.type)) {
+                errors.push(`Variable '${variable.name}': type must be 'scalar', 'series', or 'parameter'`);
+            }
+            if (variable.values && !Array.isArray(variable.values)) {
+                errors.push(`Variable '${variable.name}': values must be an array of numbers`);
+            }
+            if (variable.dependencies && !Array.isArray(variable.dependencies)) {
+                errors.push(`Variable '${variable.name}': dependencies must be an array of strings`);
+            }
+        }
+        // Validate edges
+        const edgeIds = new Set();
+        for (const [index, edge] of graphData.edges.entries()) {
+            if (!edge.id || typeof edge.id !== 'string') {
+                errors.push(`Edge ${index}: id is required and must be a string`);
+                continue;
+            }
+            if (edgeIds.has(edge.id)) {
+                errors.push(`Edge ${index}: duplicate id '${edge.id}'`);
+            }
+            edgeIds.add(edge.id);
+            if (!edge.source || typeof edge.source !== 'string') {
+                errors.push(`Edge '${edge.id}': source is required and must be a string`);
+            }
+            if (!edge.target || typeof edge.target !== 'string') {
+                errors.push(`Edge '${edge.id}': target is required and must be a string`);
+            }
+            if (!edge.type || !['dependency', 'temporal', 'causal', 'derived', 'constraint'].includes(edge.type)) {
+                errors.push(`Edge '${edge.id}': type must be one of: dependency, temporal, causal, derived, constraint`);
+            }
+            // Check if source and target variables exist
+            if (edge.source && !variableNames.has(edge.source)) {
+                errors.push(`Edge '${edge.id}': source variable '${edge.source}' not found in variables`);
+            }
+            if (edge.target && !variableNames.has(edge.target)) {
+                errors.push(`Edge '${edge.id}': target variable '${edge.target}' not found in variables`);
+            }
+        }
+        // Validate variable dependencies
+        for (const variable of graphData.variables) {
+            if (variable.dependencies) {
+                for (const dep of variable.dependencies) {
+                    if (!variableNames.has(dep)) {
+                        errors.push(`Variable '${variable.name}': dependency '${dep}' not found in variables`);
+                    }
+                }
+            }
+        }
+        return {
+            isValid: errors.length === 0,
+            errors
+        };
+    }
+    sortVariablesByDependencies(variables) {
+        const sorted = [];
+        const remaining = [...variables];
+        const added = new Set();
+        // First pass: add all parameters (no dependencies)
+        for (let i = remaining.length - 1; i >= 0; i--) {
+            const variable = remaining[i];
+            if (variable.type === 'parameter' || !variable.dependencies || variable.dependencies.length === 0) {
+                sorted.push(variable);
+                added.add(variable.name);
+                remaining.splice(i, 1);
+            }
+        }
+        // Subsequent passes: add variables whose dependencies are already added
+        let changed = true;
+        while (remaining.length > 0 && changed) {
+            changed = false;
+            for (let i = remaining.length - 1; i >= 0; i--) {
+                const variable = remaining[i];
+                const allDepsAdded = variable.dependencies.every((dep) => added.has(dep));
+                if (allDepsAdded) {
+                    sorted.push(variable);
+                    added.add(variable.name);
+                    remaining.splice(i, 1);
+                    changed = true;
+                }
+            }
+        }
+        // Add any remaining variables (they might have circular dependencies)
+        sorted.push(...remaining);
+        return sorted;
+    }
+    getGraphStatistics(model) {
+        this.refreshModelGraph();
+        if (!this.currentModelGraph) {
+            return { error: 'Failed to create model graph' };
+        }
+        const stats = this.currentModelGraph.getStatistics();
+        const cycles = this.currentModelGraph.findCycles();
+        const topOrder = this.currentModelGraph.getTopologicalOrder();
+        return {
+            nodeCount: stats.nodeCount,
+            edgeCount: stats.edgeCount,
+            maxLevel: stats.maxLevel,
+            cycleCount: stats.cycleCount,
+            stronglyConnectedComponents: stats.stronglyConnectedComponents,
+            timeDependentNodes: stats.timeDependentNodes,
+            isolatedNodes: stats.isolatedNodes,
+            canEvaluate: topOrder.canEvaluate,
+            cycles: cycles.length > 0 ? cycles : null
         };
     }
     refreshModelGraph() {

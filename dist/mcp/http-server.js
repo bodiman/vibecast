@@ -44,15 +44,7 @@ export class ModelitHTTPServer {
     }
     setupRoutes() {
         // Health check endpoint
-        this.app.get('/health', (_req, res) => {
-            res.json({
-                status: 'healthy',
-                timestamp: new Date().toISOString(),
-                server: 'Modelit MCP Server',
-                version: '0.1.0',
-                activeSessions: this.sessionManager.getActiveSessions().length
-            });
-        });
+        this.app.get('/health', (_, res) => res.send('OK'));
         // MCP endpoint for complete protocol support
         this.app.post('/mcp', async (req, res) => {
             try {
@@ -329,7 +321,7 @@ export class ModelitHTTPServer {
     }
     async routeMCPMethod(message, sessionId) {
         switch (message.method) {
-            case 'tools/list':
+            case 'list_tools':
                 return {
                     message: {
                         jsonrpc: '2.0',
@@ -423,7 +415,7 @@ export class ModelitHTTPServer {
                     },
                     sessionId
                 };
-            case 'tools/call':
+            case 'call_tool':
                 const params = message.params;
                 const { name, arguments: args } = params;
                 // Route to the actual MCP server tool handlers
@@ -555,8 +547,8 @@ export class ModelitHTTPServer {
         session.state = SessionState.Initializing;
         session.clientInfo = params.clientInfo || {};
         // Validate protocol version
-        const clientProtocolVersion = params.protocolVersion || '2024-11-05';
-        const supportedVersion = '2024-11-05';
+        const clientProtocolVersion = params.protocolVersion || '2024-05-01';
+        const supportedVersion = '2024-05-01';
         if (clientProtocolVersion !== supportedVersion) {
             this.sessionManager.deleteSession(session.id);
             return {
