@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Chat - VibeCast</title>
+    <title>Tribe</title>
+    <link rel="icon" type="image/png" href="/public/TR.png">
     <style>
         * {
             margin: 0;
@@ -985,17 +986,31 @@
         
         // Check available models from environment or API
         async function loadAvailableModels() {
-            // For now, mock available models
-            // Replace this with actual API call to check which models are available
-            const mockAvailableModels = [
+            try {
+                const response = await fetch('/api/available-models');
+                if (!response.ok) {
+                    console.error('Failed to load models:', response.status);
+                    // Fallback to mock models
+                    return getMockModels();
+                }
+                const data = await response.json();
+                return data.models || [];
+            } catch (error) {
+                console.error('Error loading models:', error);
+                // Fallback to mock models
+                return getMockModels();
+            }
+        }
+        
+        // Fallback mock models
+        function getMockModels() {
+            return [
                 { id: 'gpt-4', name: 'GPT-4', provider: 'OpenAI', description: 'Most capable OpenAI model', supportsFiles: false },
                 { id: 'gpt-4-vision', name: 'GPT-4 Vision', provider: 'OpenAI', description: 'GPT-4 with image analysis', supportsFiles: true },
                 { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'OpenAI', description: 'Fast and efficient', supportsFiles: false },
                 { id: 'claude-3-opus', name: 'Claude 3 Opus', provider: 'Anthropic', description: 'Most capable with file support', supportsFiles: true },
                 { id: 'claude-3-sonnet', name: 'Claude 3 Sonnet', provider: 'Anthropic', description: 'Balanced performance', supportsFiles: true }
             ];
-            
-            return mockAvailableModels;
         }
         
         // Populate model dropdown
@@ -1229,13 +1244,45 @@
             // Show typing indicator
             showTyping();
 
-            // Simulate AI response (replace with actual API call)
-            setTimeout(() => {
+            try {
+                // Call the real API
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: selectedModel,
+                        messages: chatHistory,
+                        frameworks: Array.from(selectedFrameworks),
+                        temperature: 0.7,
+                        max_tokens: 2000
+                    })
+                });
+
                 hideTyping();
-                const response = generateResponse(message, filesCopy);
-                addMessage('assistant', response);
-                chatHistory.push({ role: 'assistant', content: response });
-            }, 2000 + Math.random() * 1000);
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMessage = errorData.message || 'Failed to get response from AI';
+                    addMessage('assistant', `Error: ${errorMessage}\n\nPlease check your API configuration or try again.`);
+                    chatHistory.push({ role: 'assistant', content: errorMessage });
+                    return;
+                }
+
+                const data = await response.json();
+                const assistantMessage = data.message || 'No response generated';
+                
+                addMessage('assistant', assistantMessage);
+                chatHistory.push({ role: 'assistant', content: assistantMessage });
+
+            } catch (error) {
+                hideTyping();
+                console.error('Error sending message:', error);
+                const errorMsg = 'Failed to connect to the AI service. Please check your connection and try again.';
+                addMessage('assistant', errorMsg);
+                chatHistory.push({ role: 'assistant', content: errorMsg });
+            }
         }
 
         // Add message to chat
@@ -1338,8 +1385,12 @@
                 response = `I've analyzed your uploaded file(s): ${fileNames}.\n\n`;
             }
             
+            // Always acknowledge what the user said
+            const userQuery = message.length > 100 ? message.substring(0, 100) + '...' : message;
+            
             // Context-aware responses based on message content
             if (lowerMessage.includes('help') || lowerMessage.includes('what can you')) {
+                response += `You asked: "${userQuery}"\n\n`;
                 response += `I'm here to assist you with your selected frameworks: ${frameworks}.\n\nI can help you with:\n\n`;
                 response += `- Analyzing relationships between nodes and edges in your frameworks\n`;
                 response += `- Explaining patterns and connections in your data\n`;
@@ -1349,22 +1400,38 @@
                 response += `Feel free to ask me anything specific about your frameworks or upload relevant files for analysis.`;
             }
             else if (lowerMessage.includes('analyze') || lowerMessage.includes('explain')) {
+                response += `Regarding your request: "${userQuery}"\n\n`;
                 response += `Based on the frameworks you've selected (${frameworks}), I'll provide a comprehensive analysis.\n\n`;
                 response += `Key observations:\n\n`;
                 response += `1. **Framework Structure**: These frameworks contain interconnected nodes that represent different types of data and relationships. The graph structure allows for complex modeling of dependencies and flows.\n\n`;
                 response += `2. **Node Relationships**: The edges between nodes indicate various types of relationships such as dependencies, transformations, or causal links. Understanding these connections is crucial for effective analysis.\n\n`;
                 response += `3. **Patterns**: Looking at the graph topology, we can identify clusters, central nodes, and potential bottlenecks or key decision points.\n\n`;
-                response += `Would you like me to dive deeper into any specific aspect of these frameworks?`;
+                
+                // Try to extract specific terms from user's message
+                const words = message.split(' ').filter(w => w.length > 4);
+                if (words.length > 0) {
+                    response += `In relation to "${words.slice(0, 3).join(', ')}" that you mentioned, these concepts can be mapped to specific nodes or relationships within your frameworks. `;
+                }
+                
+                response += `\n\nWould you like me to dive deeper into any specific aspect of these frameworks?`;
             }
             else if (lowerMessage.includes('node') || lowerMessage.includes('edge')) {
+                response += `You asked about: "${userQuery}"\n\n`;
                 response += `Great question about the graph structure!\n\n`;
                 response += `In your selected frameworks (${frameworks}), nodes and edges form the fundamental building blocks:\n\n`;
                 response += `**Nodes** represent:\n- Parameters or variables\n- Concepts or entities\n- Stages or steps in a process\n- Decision points\n\n`;
                 response += `**Edges** represent:\n- Dependencies between nodes\n- Data flow directions\n- Causal relationships\n- Transformations or operations\n\n`;
                 response += `Each edge can carry metadata like strength, type, or confidence level, which helps in understanding the nature of relationships.\n\n`;
+                
+                // Reference user's specific terms
+                if (lowerMessage.includes('node') && lowerMessage.includes('edge')) {
+                    response += `To address both nodes and edges in your question: they work together to create a complete graph representation. `;
+                }
+                
                 response += `Is there a specific node or connection you'd like to explore further?`;
             }
             else if (lowerMessage.includes('how') || lowerMessage.includes('why')) {
+                response += `You asked: "${userQuery}"\n\n`;
                 response += `That's an insightful question! Let me break this down for you.\n\n`;
                 response += `When working with frameworks like ${frameworks}, it's important to understand the underlying principles:\n\n`;
                 response += `The framework system is designed to:\n`;
@@ -1372,14 +1439,37 @@
                 response += `• Enable visual representation of interconnected data\n`;
                 response += `• Support various types of analysis (mathematical, knowledge-based, workflow)\n`;
                 response += `• Facilitate pattern recognition and insights\n\n`;
-                response += `In the context of your question, the answer depends on the specific structure and purpose of your frameworks. `;
-                response += `Each framework type (mathematical, knowledge, workflow) has different characteristics and use cases.\n\n`;
+                
+                // Extract key concepts from user's question
+                const questionWords = message.toLowerCase()
+                    .replace(/[^\w\s]/g, '')
+                    .split(' ')
+                    .filter(w => !['how', 'why', 'what', 'when', 'where', 'the', 'a', 'an', 'is', 'are', 'do', 'does', 'can', 'could', 'would', 'should'].includes(w) && w.length > 3);
+                
+                if (questionWords.length > 0) {
+                    response += `Specifically addressing "${questionWords.slice(0, 5).join(', ')}" from your question:\n\n`;
+                    response += `In the context of ${frameworks}, these concepts relate to how the framework structures data and relationships. `;
+                }
+                
+                response += `Each framework type (mathematical, knowledge, workflow) has different characteristics and use cases that determine how these elements interact.\n\n`;
                 response += `Would you like me to elaborate on any particular aspect?`;
             }
             else {
-                // Default detailed response
-                response += `Thank you for your question regarding ${frameworks}.\n\n`;
-                response += `Let me provide you with a comprehensive response:\n\n`;
+                // Default detailed response that incorporates user's message
+                response += `Thank you for your message: "${userQuery}"\n\n`;
+                response += `Let me provide you with a comprehensive response regarding ${frameworks}.\n\n`;
+                
+                // Try to extract key terms from the user's message
+                const userTerms = message
+                    .replace(/[^\w\s]/g, '')
+                    .split(' ')
+                    .filter(w => w.length > 4)
+                    .filter(w => !['about', 'could', 'would', 'should', 'there', 'these', 'those'].includes(w.toLowerCase()));
+                
+                if (userTerms.length > 0) {
+                    response += `I understand you're interested in: ${userTerms.slice(0, 5).join(', ')}.\n\n`;
+                }
+                
                 response += `The frameworks you've selected offer rich data structures that can be analyzed from multiple perspectives. `;
                 response += `Each framework contains nodes representing different entities or concepts, connected by edges that define their relationships.\n\n`;
                 response += `Key insights:\n\n`;
@@ -1387,7 +1477,14 @@
                 response += `• Node metadata provides additional context for deeper analysis\n`;
                 response += `• Edge properties help quantify and qualify relationships\n`;
                 response += `• The visual representation aids in pattern recognition\n\n`;
-                response += `To get more specific insights, you could:\n`;
+                
+                // Make it contextual to user's input
+                if (userTerms.length > 0) {
+                    response += `In relation to your question about "${userTerms.slice(0, 3).join(', ')}":\n`;
+                    response += `These concepts can be explored through the framework's node and edge relationships. `;
+                }
+                
+                response += `\n\nTo get more specific insights, you could:\n`;
                 response += `1. Query specific node types or patterns\n`;
                 response += `2. Analyze the flow and dependencies\n`;
                 response += `3. Explore clusters or communities in the graph\n`;
