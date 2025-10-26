@@ -592,8 +592,8 @@ export class ModelitHTTPServer {
     session.clientInfo = params.clientInfo || {};
     
     // Validate protocol version
-    const clientProtocolVersion = params.protocolVersion || '2024-11-05';
-    const supportedVersion = '2024-11-05';
+    const clientProtocolVersion = params.protocolVersion || '2024-05-01';
+    const supportedVersion = '2024-05-01';
     
     if (clientProtocolVersion !== supportedVersion) {
       this.sessionManager.deleteSession(session.id);
