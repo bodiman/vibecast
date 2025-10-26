@@ -6,6 +6,7 @@ import express from 'express';
 import { createServer } from 'http';
 import path from 'path';
 import { frameworkAPI } from '../api/FrameworkAPI.js';
+import { lavaAPI } from '../api/LavaAPI.js';
 
 export interface ServerConfig {
   port: number;
@@ -64,6 +65,11 @@ export class FrameworkServer {
     this.app.put('/api/frameworks/:name', frameworkAPI.updateFramework.bind(frameworkAPI));
     this.app.delete('/api/frameworks/:name', frameworkAPI.deleteFramework.bind(frameworkAPI));
     this.app.get('/api/stats', frameworkAPI.getStats.bind(frameworkAPI));
+
+    // Lava AI API Routes
+    this.app.post('/api/chat', lavaAPI.chat.bind(lavaAPI));
+    this.app.get('/api/available-models', lavaAPI.getAvailableModels.bind(lavaAPI));
+    this.app.get('/api/lava-health', lavaAPI.healthCheck.bind(lavaAPI));
 
     // Serve framework viewer
     this.app.get('/framework/:name(*)', (req, res) => {

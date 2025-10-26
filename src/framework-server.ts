@@ -3,6 +3,7 @@
  * Framework Server - Entry point
  */
 
+import 'dotenv/config';
 import { FrameworkServer } from './server/FrameworkServer.js';
 
 const PORT = parseInt(process.env.PORT || '3000');
