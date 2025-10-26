@@ -4,6 +4,10 @@
  * Exposes VibeCast Framework System to AI models via Model Context Protocol
  */
 
+// Load environment variables
+import { config } from 'dotenv';
+config();
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -127,6 +131,11 @@ const ApplyGraphDiffSchema = z.object({
   }).optional(),
 });
 
+const SearchFrameworksSchema = z.object({
+  query: z.string().describe('Natural language search query'),
+  limit: z.number().optional().describe('Maximum number of results to return (default: 5)'),
+});
+
 /**
  * Create and configure the MCP server
  */
@@ -143,6 +152,16 @@ async function createServer() {
       },
     }
   );
+
+  // Initialize vector search service
+  try {
+    const vectorSearch = dbStorage.getVectorSearchService();
+    await vectorSearch.initializeCollection();
+    console.error('🔍 Vector search service initialized');
+  } catch (error) {
+    console.error('⚠️ Vector search service initialization failed:', error);
+    console.error('📝 Semantic search will be disabled');
+  }
 
   /**
    * Tool: list_frameworks
@@ -399,6 +418,24 @@ async function createServer() {
               },
             },
             required: ['diff'],
+          },
+        },
+        {
+          name: 'search_frameworks',
+          description: 'Semantic search across frameworks using natural language queries. Returns ranked framework matches based on title and node names.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              query: {
+                type: 'string',
+                description: 'Natural language search query (e.g., "financial forecasting", "machine learning models", "revenue analysis")',
+              },
+              limit: {
+                type: 'number',
+                description: 'Maximum number of results to return (default: 5)',
+              },
+            },
+            required: ['query'],
           },
         },
       ],
@@ -718,6 +755,69 @@ async function createServer() {
               },
             ],
           };
+        }
+
+        case 'search_frameworks': {
+          const params = SearchFrameworksSchema.parse(args);
+          const vectorSearch = dbStorage.getVectorSearchService();
+          
+          try {
+            const results = await vectorSearch.searchFrameworks(params.query, params.limit || 5);
+            
+            // Enrich results with additional framework data
+            const enrichedResults = await Promise.all(
+              results.map(async (result) => {
+                const framework = await prisma.framework.findUnique({
+                  where: { id: result.frameworkId },
+                  select: {
+                    name: true,
+                    description: true,
+                    type: true,
+                    nodeCount: true,
+                    edgeCount: true,
+                    createdAt: true,
+                    updatedAt: true,
+                  }
+                });
+                
+                return {
+                  ...result,
+                  description: framework?.description || '',
+                  type: framework?.type || 'unknown',
+                  edgeCount: framework?.edgeCount || 0,
+                  createdAt: framework?.createdAt,
+                  updatedAt: framework?.updatedAt,
+                };
+              })
+            );
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    query: params.query,
+                    results: enrichedResults,
+                    totalResults: enrichedResults.length,
+                  }, null, 2),
+                },
+              ],
+            };
+          } catch (error) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    error: 'Semantic search failed',
+                    message: error instanceof Error ? error.message : String(error),
+                    fallback: 'Try using list_frameworks for basic framework listing'
+                  }),
+                },
+              ],
+              isError: true,
+            };
+          }
         }
 
         default:

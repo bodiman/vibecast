@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { GraphDiffResult, ApplyDiffResult } from '../services/GraphDiffService.js';
+import { VectorSearchService } from '../services/VectorSearchService.js';
 
 export interface BackupInfo {
   id: string;
@@ -10,9 +11,34 @@ export interface BackupInfo {
 
 export class DatabaseStorage {
   private prisma: PrismaClient;
+  private vectorSearch: VectorSearchService;
 
   constructor() {
     this.prisma = new PrismaClient();
+    this.vectorSearch = new VectorSearchService();
+  }
+
+  /**
+   * Generate searchable document text for a framework
+   */
+  private async getFrameworkDocument(frameworkId: string): Promise<{ title: string; nodeNames: string[] } | null> {
+    const framework = await this.prisma.framework.findUnique({
+      where: { id: frameworkId },
+      include: {
+        nodes: {
+          select: { name: true }
+        }
+      }
+    });
+
+    if (!framework) {
+      return null;
+    }
+
+    return {
+      title: framework.name,
+      nodeNames: framework.nodes.map(node => node.name)
+    };
   }
 
   async loadModel(frameworkName: string) {
@@ -261,6 +287,19 @@ export class DatabaseStorage {
         transactionId
       };
     });
+
+    // Trigger vector search reindexing if nodes were added or deleted
+    if (nodesAdded > 0 || nodesDeleted > 0) {
+      try {
+        const frameworkDoc = await this.getFrameworkDocument(framework.id);
+        if (frameworkDoc) {
+          await this.vectorSearch.indexFramework(framework.id, frameworkDoc.title, frameworkDoc.nodeNames);
+        }
+      } catch (error) {
+        console.error('Failed to update vector search index:', error);
+        // Don't fail the main operation if vector search fails
+      }
+    }
   }
 
   async saveBackup(frameworkName: string): Promise<BackupInfo> {
@@ -375,5 +414,12 @@ export class DatabaseStorage {
 
   async close(): Promise<void> {
     await this.prisma.$disconnect();
+  }
+
+  /**
+   * Get the vector search service instance
+   */
+  getVectorSearchService(): VectorSearchService {
+    return this.vectorSearch;
   }
 }
