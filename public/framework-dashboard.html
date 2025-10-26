@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Framework Dashboard - VibeCast</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+        }
+        
+        header h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .stat {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .frameworks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .framework-card {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: white;
+            display: block;
+        }
+        
+        .framework-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            background: rgba(255, 255, 255, 0.18);
+        }
+        
+        .framework-card .type-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+        }
+        
+        .framework-card h3 {
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+        
+        .framework-card .description {
+            font-size: 14px;
+            line-height: 1.6;
+            opacity: 0.9;
+            margin-bottom: 15px;
+            min-height: 40px;
+        }
+        
+        .framework-card .meta {
+            display: flex;
+            gap: 15px;
+            font-size: 13px;
+            opacity: 0.8;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            font-size: 18px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            opacity: 0.8;
+        }
+        
+        .error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            opacity: 0.7;
+            font-size: 14px;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+        
+        .filter-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .filter-btn.active {
+            background: rgba(139, 92, 246, 0.8);
+            border-color: #8b5cf6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Framework Dashboard</h1>
+            <p>Unified Knowledge & Model Graphs</p>
+        </header>
+
+        <div class="stats" id="stats">
+            <div class="stat">
+                <div class="stat-value" id="total-count">0</div>
+                <div class="stat-label">Total Frameworks</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="mathematical-count">0</div>
+                <div class="stat-label">Mathematical</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="knowledge-count">0</div>
+                <div class="stat-label">Knowledge</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="workflow-count">0</div>
+                <div class="stat-label">Workflow</div>
+            </div>
+        </div>
+        
+        <div class="filters" id="filters">
+            <button class="filter-btn active" data-type="all">All</button>
+            <button class="filter-btn" data-type="mathematical">Mathematical</button>
+            <button class="filter-btn" data-type="knowledge">Knowledge</button>
+            <button class="filter-btn" data-type="workflow">Workflow</button>
+            <button class="filter-btn" data-type="general">General</button>
+        </div>
+
+        <div id="content"></div>
+
+        <footer>
+            <p>Powered by VibeCast Framework System</p>
+        </footer>
+    </div>
+
+    <script>
+        let allFrameworks = [];
+        let currentFilter = 'all';
+        
+        async function loadFrameworks() {
+            const content = document.getElementById('content');
+            content.innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading frameworks...</div></div>';
+
+            try {
+                const response = await fetch('/api/frameworks');
+                if (!response.ok) throw new Error('Failed to load frameworks');
+                
+                allFrameworks = await response.json();
+                
+                // Update stats
+                const stats = await fetch('/api/stats').then(r => r.json());
+                document.getElementById('total-count').textContent = stats.total;
+                document.getElementById('mathematical-count').textContent = stats.byType.mathematical || 0;
+                document.getElementById('knowledge-count').textContent = stats.byType.knowledge || 0;
+                document.getElementById('workflow-count').textContent = stats.byType.workflow || 0;
+                
+                renderFrameworks();
+                
+            } catch (error) {
+                content.innerHTML = `
+                    <div class="error">
+                        <h2>Error Loading Frameworks</h2>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function renderFrameworks() {
+            const content = document.getElementById('content');
+            
+            const filtered = currentFilter === 'all' 
+                ? allFrameworks 
+                : allFrameworks.filter(f => f.type === currentFilter);
+            
+            if (filtered.length === 0) {
+                content.innerHTML = `
+                    <div class="empty">
+                        <h2>No ${currentFilter === 'all' ? '' : currentFilter} frameworks found</h2>
+                        <p style="margin-top: 10px;">Create your first framework to get started.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            content.innerHTML = `
+                <div class="frameworks-grid">
+                    ${filtered.map(framework => `
+                        <a href="/framework/${encodeURIComponent(framework.name)}" class="framework-card">
+                            <div class="type-badge">${framework.type}</div>
+                            <h3>${framework.name}</h3>
+                            <div class="description">${framework.description || 'No description'}</div>
+                            <div class="meta">
+                                <span>📊 ${framework.nodeCount} nodes</span>
+                                <span>🔗 ${framework.edgeCount} edges</span>
+                            </div>
+                        </a>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        // Filter buttons
+        document.getElementById('filters').addEventListener('click', (e) => {
+            if (e.target.classList.contains('filter-btn')) {
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                e.target.classList.add('active');
+                currentFilter = e.target.dataset.type;
+                renderFrameworks();
+            }
+        });
+        
+        // Load on page load
+        loadFrameworks();
+    </script>
+</body>
+</html>

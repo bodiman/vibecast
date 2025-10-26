@@ -1,0 +1,269 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Model represents a complete mathematical model
+model Model {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  metadata    Json?    // Flexible metadata storage
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  version     String   @default("1.0.0")
+  
+  // Relations
+  variables   Variable[]
+  edges       Edge[]
+  marketplace MarketplaceModel?
+  versions    ModelVersion[]
+  
+  // Indexes for performance
+  @@map("models")
+}
+
+// Variable represents a single variable in a model
+model Variable {
+  id       String  @id @default(cuid())
+  name     String  
+  type     String  // 'parameter', 'series', 'scalar'
+  formula  String? // Mathematical formula (null for parameters)
+  values   Json?   // Array of values for time series
+  metadata Json?   // Time indices, units, description, etc.
+  
+  // Relations
+  model    Model   @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  modelId  String
+  
+  // Edges where this variable is source or target
+  sourceEdges Edge[] @relation("SourceVariable")
+  targetEdges Edge[] @relation("TargetVariable")
+  
+  // Graph positioning for 3D visualization
+  position3D Json? // {x, y, z} coordinates
+  
+  // Indexes
+  @@unique([modelId, name])
+  @@map("variables")
+}
+
+// Edge represents a dependency relationship between variables
+model Edge {
+  id       String  @id @default(cuid())
+  type     String  @default("dependency") // 'dependency', 'temporal', 'causal', 'constraint'
+  metadata Json?   // Strength, description, etc.
+  
+  // Relations
+  model    Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  modelId  String
+  
+  source   Variable @relation("SourceVariable", fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId String
+  
+  target   Variable @relation("TargetVariable", fields: [targetId], references: [id], onDelete: Cascade)
+  targetId String
+  
+  // Indexes for graph queries
+  @@index([sourceId])
+  @@index([targetId])
+  @@index([modelId])
+  @@map("edges")
+}
+
+// MarketplaceModel represents published models in the marketplace
+model MarketplaceModel {
+  id          String   @id @default(cuid())
+  author      String
+  tags        String[] // Array of tags
+  category    String
+  license     String
+  stars       Int      @default(0)
+  forks       Int      @default(0)
+  downloads   Int      @default(0)
+  published   Boolean  @default(false)
+  publishedAt DateTime @default(now())
+  
+  // Relations
+  model       Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  modelId     String   @unique
+  
+  // Dependencies (references to other marketplace models)
+  dependencies String[] // Array of model IDs
+  
+  // Full-text search indexes
+  @@index([category])
+  @@index([author])
+  @@index([stars])
+  @@index([downloads])
+  @@map("marketplace_models")
+}
+
+// ModelVersion for version control
+model ModelVersion {
+  id        String   @id @default(cuid())
+  version   String
+  snapshot  Json     // Complete model state at this version
+  changelog String?
+  createdAt DateTime @default(now())
+  
+  // Relations
+  model     Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  modelId   String
+  
+  @@unique([modelId, version])
+  @@map("model_versions")
+}
+
+// Session for collaborative editing and real-time updates
+model Session {
+  id        String   @id @default(cuid())
+  userId    String?  // Optional user identification
+  modelId   String?  // Current model being edited
+  data      Json?    // Session state
+  lastSeen  DateTime @default(now())
+  createdAt DateTime @default(now())
+  
+  @@index([modelId])
+  @@index([userId])
+  @@map("sessions")
+}
+
+// GraphLayout for storing 3D visualization layouts
+model GraphLayout {
+  id          String @id @default(cuid())
+  modelId     String @unique
+  layoutType  String @default("force-directed") // Layout algorithm used
+  nodePositions Json  // Map of variableId -> {x, y, z}
+  settings    Json?  // Layout-specific settings
+  updatedAt   DateTime @updatedAt
+  
+  @@map("graph_layouts")
+}
+
+// ===== NEW: TribalKnowledge Models =====
+
+// Main TribalKnowledge graph container
+model TribalKnowledge {
+  id          String   @id @default(cuid())
+  codespace   String   // Codespace identifier
+  domain      String   // Domain (e.g., 'frontend', 'api', 'database')
+  description String?
+  
+  // Serialized graph data
+  metadata    Json     // TribalKnowledgeMetadata
+  nodes       Json     // KnowledgeNode[]
+  links       Json     // KnowledgeLink[]
+  
+  // Quick access fields (denormalized for performance)
+  version     String   @default("1.0.0")
+  nodeCount   Int      @default(0)
+  linkCount   Int      @default(0)
+  avgImportance Float  @default(0)
+  
+  // Ownership and visibility
+  owner       String?
+  visibility  String   @default("private") // 'private' | 'team' | 'public'
+  
+  // Hub metadata
+  published   Boolean  @default(false)
+  publishedAt DateTime?
+  stars       Int      @default(0)
+  forks       Int      @default(0)
+  downloads   Int      @default(0)
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Activity tracking
+  activities  KnowledgeActivity[]
+  
+  @@unique([codespace, domain])
+  @@index([codespace])
+  @@index([visibility])
+  @@index([published])
+  @@index([owner])
+  @@map("tribal_knowledge")
+}
+
+// Activity log for knowledge evolution
+model KnowledgeActivity {
+  id          String   @id @default(cuid())
+  
+  knowledge   TribalKnowledge @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
+  knowledgeId String
+  
+  // Activity details
+  type        String   // 'node_added', 'node_updated', 'link_added', 'merged', 'forked', etc.
+  actor       String?  // Who made the change
+  description String?
+  metadata    Json?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([knowledgeId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("knowledge_activities")
+}
+
+// Agent state - tracks which knowledge an agent is using
+model AgentState {
+  id          String   @id @default(cuid())
+  
+  // Agent identification
+  agentId     String   @unique
+  agentName   String?
+  codespace   String
+  
+  // Current knowledge context
+  currentKnowledge Json // { codespace: string, domain: string }[]
+  
+  // Learning history
+  interactions Int     @default(0)
+  lastActive   DateTime @default(now())
+  
+  // Performance metrics
+  metrics      Json?   // Success rates, patterns used, etc.
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([codespace])
+  @@index([lastActive])
+  @@map("agent_states")
+}
+
+// Shared context cache for quick access
+model ContextCache {
+  id          String   @id @default(cuid())
+  
+  // Cache key
+  codespace   String
+  domain      String
+  contextType String   // 'full', 'summary', 'top-nodes', etc.
+  
+  // Cached content
+  content     String   @db.Text
+  tokens      Int?     // Approximate token count
+  
+  // Cache metadata
+  version     String   // Knowledge version when cached
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime // When to invalidate
+  
+  @@unique([codespace, domain, contextType])
+  @@index([expiresAt])
+  @@map("context_cache")
+}
