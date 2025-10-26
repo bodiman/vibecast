@@ -15,6 +15,7 @@
     "mcp": "tsx src/mcp/creao-server.ts",
     "mcp:inspect": "npx @modelcontextprotocol/inspector tsx src/mcp/creao-server.ts",
     "mcp:test": "tsx test-mcp.ts",
+    "clear-db": "node scripts/clear-database.js",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit"
